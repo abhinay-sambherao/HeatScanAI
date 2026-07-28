@@ -17,19 +17,38 @@ from app.models.crawler_log import CrawlerLog
 router = APIRouter(prefix="/crawler", tags=["Crawler"])
 
 
-async def _run_crawler_background() -> None:
+async def _run_crawler_background(log_id: uuid.UUID, max_pages: int) -> None:
     """Run crawler in background using a fresh database session."""
     async with async_session_factory() as db:
         try:
-            await run_crawler(db)
+            # Update the existing log entry to running
+            stmt = select(CrawlerLog).where(CrawlerLog.id == log_id)
+            log = (await db.execute(stmt)).scalar_one_or_none()
+            if log:
+                log.status = "running"
+                await db.flush()
+
+            result = await run_crawler(db, max_pages_per_group=max_pages)
+
+            # Merge the results into the original log
+            log.status = result.status
+            log.records_count = result.records_count
+            log.finished_at = result.finished_at
+            log.error_message = result.error_message
             await db.commit()
-        except Exception:
-            await db.rollback()
-            raise
+        except Exception as exc:
+            if log:
+                log.status = "failed"
+                log.error_message = str(exc)
+                log.finished_at = datetime.now(timezone.utc)
+                await db.commit()
+            else:
+                await db.rollback()
 
 
 @router.post("/run", response_model=CrawlerRunResponse)
 async def trigger_crawler(
+    max_pages: int = Query(40, ge=0, le=10000, description="Max pages per group (0=unlimited, 40=1000 products)"),
     db: AsyncSession = Depends(get_db),
 ) -> CrawlerRunResponse:
     """Trigger an EPREL crawl job. Runs asynchronously in the background."""
@@ -42,12 +61,12 @@ async def trigger_crawler(
     db.add(log)
     await db.flush()
 
-    asyncio.create_task(_run_crawler_background())
+    asyncio.create_task(_run_crawler_background(log.id, max_pages))
 
     return CrawlerRunResponse(
         job_id=log.id,
         status="queued",
-        message="Crawler job queued. Check /crawler/logs for status.",
+        message=f"Crawler job queued (max_pages={max_pages}/group). Check /crawler/logs for status.",
     )
 
 
