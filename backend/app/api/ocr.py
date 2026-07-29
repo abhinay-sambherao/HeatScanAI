@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import uuid
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from typing import Optional
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -31,11 +32,17 @@ def _validate_file(file: UploadFile) -> None:
 @router.post("", response_model=OCRResponse)
 async def upload_and_analyze(
     file: UploadFile = File(...),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+    address: Optional[str] = Form(None),
+    city: Optional[str] = Form(None),
+    installation_year: Optional[int] = Form(None),
     db: AsyncSession = Depends(get_db),
 ) -> OCRResponse:
     """Upload a heating system nameplate image for OCR analysis.
 
     Accepts JPEG, PNG, WebP, or PDF files up to 20MB.
+    Optionally accepts location metadata (latitude, longitude, address, city).
     Returns detected manufacturer, model, confidence score, and top product matches.
     """
     _validate_file(file)
@@ -50,6 +57,11 @@ async def upload_and_analyze(
             db=db,
             image_data=contents,
             filename=file.filename or "unknown",
+            latitude=latitude,
+            longitude=longitude,
+            address=address,
+            city=city,
+            installation_year=installation_year,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"OCR processing failed: {exc}") from exc
@@ -77,5 +89,10 @@ async def upload_and_analyze(
         raw_text=result["raw_text"],
         cleaned_text=result["cleaned_text"],
         matches=match_results,
+        latitude=result.get("latitude"),
+        longitude=result.get("longitude"),
+        address=result.get("address"),
+        city=result.get("city"),
+        installation_year=result.get("installation_year"),
         created_at=result["created_at"],
     )

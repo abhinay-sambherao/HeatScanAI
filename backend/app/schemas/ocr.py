@@ -32,6 +32,11 @@ class OCRResponse(BaseModel):
     raw_text: str
     cleaned_text: str
     matches: List[OCRMatchResult] = []
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    installation_year: Optional[int] = Field(default=None, ge=1980, le=2030)
     created_at: datetime
 
 
@@ -39,3 +44,7 @@ class OCRRequest(BaseModel):
     """Optional metadata sent with an OCR upload."""
 
     installation_year: Optional[int] = Field(default=None, ge=1980, le=2030)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    address: Optional[str] = None
+    city: Optional[str] = None

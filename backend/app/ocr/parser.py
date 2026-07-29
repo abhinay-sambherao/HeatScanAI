@@ -14,6 +14,7 @@ KNOWN_MANUFACTURERS = [
     "Atag", "Nefit", "AWB", "Brotje", "Viadrus", "Dakins",
     "Chaffoteaux", "De Dietrich", "Saunier Duval", "Vailant",
     "ATMOS", "Thermia", "CLAGE", "Stiebel", "Eltron",
+    "Truma",
 ]
 
 # Common OCR misspellings mapped to canonical names
@@ -46,12 +47,18 @@ HEAT_OUTPUT_PATTERN = re.compile(
 )
 
 MODEL_PATTERNS = [
-    re.compile(r"(?:Model|Modell|Type|Typ)\s*[:\s]*([A-Za-z0-9\-\.\s]+)", re.IGNORECASE),
-    re.compile(r"\b([A-Z]{1,3}[\s\-]?\d{2,5}[A-Za-z]?)\b"),
+    re.compile(
+        r"(?:(?:^|[.\n\r])\s*(?:Model|Modell|Type|Typ)|(?<!\w)(?:Model|Modell))"
+        r"\s*[:\s]*([A-Za-z0-9][A-Za-z0-9\-\.\s]{1,50}?)"
+        r"(?=\s*(?:Serial|S\/N|No\.?\s*[:.]|Pin|\n|$)|\s+[A-Z][a-z])",
+        re.IGNORECASE,
+    ),
 ]
 
+MODEL_GENERIC = re.compile(r"\b([A-Z]{1,3}[\s\-]?\d{2,5}[A-Za-z]?(?:[\s\-]\d{2,4}[A-Za-z]?)?)\b")
+
 FUEL_KEYWORDS = {
-    "gas": ["gas", "erdgas", "natural gas", "methane"],
+    "gas": ["gas", "erdgas", "natural gas", "methane", "butane", "propane", "lpg"],
     "oil": ["oil", "öl", "heating oil", "heizöl", "diesel"],
     "electricity": ["electric", "elektrisch", "heat pump", "wärmepumpe", "electricity"],
     "wood": ["wood", "holz", "pellet", "biomass", "biomasse"],
@@ -86,11 +93,35 @@ def extract_manufacturer(text: str) -> str | None:
 
 def extract_model(text: str) -> str | None:
     """Extract the most likely model number from OCR text."""
+    # First pass: explicit model labels
     for pattern in MODEL_PATTERNS:
         match = pattern.search(text)
         if match:
-            return match.group(1).strip()
-    return None
+            candidate = match.group(1).strip()
+            if len(candidate) >= 3 and len(candidate) <= 40:
+                return candidate
+
+    # Second pass: collect all generic model-like candidates, pick best
+    candidates = []
+    for m in MODEL_GENERIC.finditer(text):
+        val = m.group(1).strip()
+        parts = re.findall(r"\d+", val)
+        num_digits = sum(len(p) for p in parts)
+        # Skip pure years, short numeric codes, and known non-model patterns
+        if re.match(r"^\d{4}$", val):
+            continue
+        if num_digits < 3:
+            continue  # not enough digit content to be a model
+        if num_digits > 12:
+            continue  # too long (serial numbers)
+        candidates.append(val)
+
+    if not candidates:
+        return None
+
+    # Prefer candidates with more digits (more likely real model numbers)
+    candidates.sort(key=lambda v: sum(len(p) for p in re.findall(r"\d+", v)), reverse=True)
+    return candidates[0]
 
 
 def extract_energy_class(text: str) -> str | None:

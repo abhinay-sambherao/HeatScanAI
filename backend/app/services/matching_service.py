@@ -88,27 +88,36 @@ async def find_matches(
             raw_score = fuzz.partial_ratio(
                 raw_text.lower(), product.model.lower()
             )
-            # Blend raw score into composite (up to 50% boost)
+
+        # Require at least manufacturer OR model to match at a meaningful level
+        has_primary_match = mfr_score > 50 or model_score > 50 or raw_score > 70
+
+        if not has_primary_match:
+            continue
+
+        # Blend raw text boost (only if substantial match)
+        # Don't boost if manufacturer is clearly different
+        if raw_score > 60 and (manufacturer is None or mfr_score > 30):
             composite = max(composite, raw_score * 0.5)
 
-        if composite < 5.0:
+        if composite < 30.0:
             continue
 
         matched_attrs = {}
         reasons = []
-        if mfr_score > 40:
+        if mfr_score > 50:
             matched_attrs["manufacturer"] = {"score": round(mfr_score, 1), "target": mfr_name}
             reasons.append("Manufacturer match: %s (%.0f%%)" % (mfr_name, mfr_score))
-        if model_score > 40:
+        if model_score > 50:
             matched_attrs["model"] = {"score": round(model_score, 1), "target": product.model}
             reasons.append("Model match: %s (%.0f%%)" % (product.model, model_score))
-        if energy_score > 40:
+        if energy_score > 50:
             matched_attrs["energy_class"] = {"score": round(energy_score, 1), "target": product.energy_class}
-        if fuel_score > 40:
+        if fuel_score > 50:
             matched_attrs["fuel_type"] = {"score": round(fuel_score, 1), "target": product.fuel_type}
-        if output_score > 40:
+        if output_score > 50:
             matched_attrs["heat_output"] = {"score": round(output_score, 1), "target": product.heat_output}
-        if raw_score > 60:
+        if raw_score > 70:
             matched_attrs["raw_text_match"] = {"score": round(raw_score, 1), "target": product.model}
             reasons.append("Raw text match: %s (%.0f%%)" % (product.model, raw_score))
 

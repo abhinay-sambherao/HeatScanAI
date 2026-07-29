@@ -76,6 +76,11 @@ async def ocr_history(
                 "id": str(s.id),
                 "filename": s.filename,
                 "confidence": s.confidence,
+                "latitude": s.latitude,
+                "longitude": s.longitude,
+                "address": s.address,
+                "city": s.city,
+                "installation_year": s.installation_year,
                 "created_at": s.created_at.isoformat(),
             }
             for s in scans

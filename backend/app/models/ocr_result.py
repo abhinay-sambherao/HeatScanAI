@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import String, DateTime, Text, Float, func
+from sqlalchemy import String, DateTime, Text, Float, Integer, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -21,6 +21,11 @@ class OCRResult(Base):
     cleaned_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     image_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    address: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    city: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    installation_year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     matches: Mapped[list["Match"]] = relationship("Match", back_populates="ocr_result")
