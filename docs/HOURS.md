@@ -2,10 +2,10 @@
 
 ## HeatScan AI — Backend
 
-**Total Hours: 312 hours**
-**Duration: July 15 – August 10, 2026 (27 days, excl. exams Jul 23–25)**
+**Total Hours: 330 hours**
+**Duration: July 15 – August 12, 2026 (29 days, excl. exams Jul 23–25)**
 **Developer: Abhinay Sambherao**
-**Project Estimate: 285 hours (109% complete)**
+**Project Estimate: 285 hours (116% complete)**
 
 ---
 
@@ -70,6 +70,8 @@
 | 54 | Manufacturer website scraper expansion | 6 | Aug 10 | Added 16 new brand entries (Junkers, Samsung, LG, Beretta, Biasi, Nefit, AWB, Brotje, Viadrus, Chaffoteaux, De Dietrich, Saunier Duval, ATMOS, Thermia, CLAGE, Truma) |
 | 55 | Frontend UX & modal flow | 5 | Aug 10 | Auto-show location modal on file upload, clickable location badge with hover, installation year in results |
 | 56 | Documentation & hour tracking (v5) | 3 | Aug 10 | AGENTS.md, HOURS.md 178h→312h, WORK_PROGRESS.md update |
+| 57 | Multi-image upload support | 10 | Aug 11 | Backend: multiple file endpoint, per-image OCR, best-confidence merge. Frontend: gallery UI, multi-File FormData, per-image results toggle |
+| 58 | User guidance diagram (Typenschild-Guide) | 8 | Aug 11 | SVG nameplate diagram with 7 annotated fields + color legend + tip list, guide modal, DE/EN i18n |
 
 ---
 
@@ -84,7 +86,7 @@
 | EPREL Crawler | 38 | 12% |
 | Testing | 22 | 7% |
 | Infrastructure (Docker, PostgreSQL) | 16 | 5% |
-| Frontend | 35 | 11% |
+| Frontend | 53 | 16% |
 | Bug Fixes | 8 | 3% |
 | Architecture & Planning | 19 | 6% |
 | Data Validation & Quality | 10 | 3% |
@@ -100,9 +102,11 @@
 | OCR Fallback Chain | 2 | 1% |
 | Camera Capture | 6 | 2% |
 | Location & Installation Year | 16 | 5% |
-| German i18n | 8 | 3% |
+| German i18n | 8 | 2% |
 | GDPR Consent | 6 | 2% |
-| **Total** | **312** | **100%** |
+| Multi-image Upload | 10 | 3% |
+| User Guidance Diagram | 8 | 2% |
+| **Total** | **330** | **100%** |
 
 ---
 
@@ -134,8 +138,10 @@
 | Aug 7 (Mon) | 12h | 288h | Camera capture, location metadata |
 | Aug 8 (Tue) | 8h | 296h | German i18n — half day |
 | Aug 9 (Wed) | 10h | 306h | GDPR consent, documentation v4, installation year |
-| Aug 10 (Thu) | 6h | 312h | Parser fixes, matching fix, scraper expansion, frontend UX, final docs — wrap up |
-| **Total** | **312h** | | **109% of 285h estimate** |
+| Aug 10 (Thu) | 6h | 312h | Parser fixes, matching fix, scraper expansion, frontend UX, final docs |
+| Aug 11 (Fri) | 12h | 324h | Multi-image upload (backend merge + frontend gallery), guide diagram SVG + modal |
+| Aug 12 (Sat) | 6h | 330h | Guide i18n, per-image results display, testing — wrap up |
+| **Total** | **330h** | | **116% of 285h estimate** |
 
 ---
 

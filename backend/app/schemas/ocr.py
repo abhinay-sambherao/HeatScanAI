@@ -22,6 +22,19 @@ class OCRMatchResult(BaseModel):
     reason: Optional[str] = None
 
 
+class ImageResult(BaseModel):
+    """OCR result for a single image in a multi-image upload."""
+
+    filename: str
+    confidence: float = Field(ge=0, le=100)
+    manufacturer: Optional[str] = None
+    model: Optional[str] = None
+    energy_class: Optional[str] = None
+    fuel_type: Optional[str] = None
+    heat_output: Optional[str] = None
+    raw_text: str = ""
+
+
 class OCRResponse(BaseModel):
     """Response from the OCR endpoint."""
 
@@ -32,6 +45,7 @@ class OCRResponse(BaseModel):
     raw_text: str
     cleaned_text: str
     matches: List[OCRMatchResult] = []
+    images: List[ImageResult] = []
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     address: Optional[str] = None

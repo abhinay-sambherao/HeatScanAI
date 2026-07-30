@@ -27,7 +27,9 @@ Based on the 285-hour estimate submitted to EVH.
 | 17 | Fallback chain (EPREL on-demand + manufacturer) | 8 h | 20 h | 0 h | DONE |
 | 18 | Camera capture & location metadata | 5 h | 6 h | 0 h | DONE |
 | 19 | German i18n & GDPR compliance | 5 h | 6 h | 0 h | DONE |
-| | **TOTAL** | **285 h** | **312 h** | **0 h** | **100%** |
+| 20 | Multi-image upload support | — | 10 h | 0 h | DONE |
+| 21 | User guidance diagram | — | 8 h | 0 h | DONE |
+| | **TOTAL** | **285 h** | **330 h** | **0 h** | **100%** |
 
 ---
 
@@ -297,7 +299,7 @@ Based on the 285-hour estimate submitted to EVH.
 
 ## All Milestones Complete ✓
 
-All 19 milestones totaling 285 estimated hours have been completed. Actual hours spent: **312h** (109% of estimate), reflecting overtime and crunch periods to deliver ahead of schedule. The 27-hour overrun was primarily driven by:
+All 21 milestones totaling 285 estimated hours have been completed. Actual hours spent: **330h** (116% of estimate), reflecting new feature additions (multi-image upload, user guidance diagram) on top of the original scope. The 45-hour overrun was driven by:
 
 - **EPREL API reverse engineering** (14h) — undocumented JSON API required overnight research
 - **Frontend scope expansion** (35h vs 8h estimated) — camera capture, location metadata, i18n, GDPR, DB browser
