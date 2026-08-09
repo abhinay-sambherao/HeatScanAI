@@ -162,6 +162,8 @@ async def _persist_and_match(
             db,
             manufacturer=merged.get("manufacturer"),
             model=merged.get("model"),
+            fuel_type=merged.get("fuel_type"),
+            heat_output=merged.get("heat_output"),
         )
         if new_products:
             matches = await find_matches(

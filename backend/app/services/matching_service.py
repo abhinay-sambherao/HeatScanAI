@@ -3,6 +3,8 @@ from __future__ import annotations
 """Matching engine using RapidFuzz to find the best product matches
 for OCR-extracted fields."""
 
+import re
+
 from rapidfuzz import fuzz
 
 from sqlalchemy import select
@@ -24,6 +26,36 @@ def _fuzzy_score(query, target) -> float:
     if not query or not target:
         return 0.0
     return fuzz.token_sort_ratio(query.lower(), target.lower())
+
+
+def _brand_consistent(mfr_name, manufacturer, raw_text) -> bool:
+    """Check the product's brand plausibly matches the detected manufacturer.
+
+    Fuzzy brand comparison is unreliable for short names: 'truma' vs 'terma'
+    scores 80, 'truma' vs 'trane' 60, 'truma' vs 'termia' 73 — none of which
+    are actually the same brand. Use hard evidence instead:
+      1. the detected manufacturer's leading word appears as a whole word in
+         the product's brand ("Vaillant" in "Vaillant GmbH"),
+      2. the product brand's leading word appears verbatim in the OCR text
+         (the nameplate itself is ground truth).
+    """
+    if not mfr_name or not manufacturer:
+        return False
+    det_word = manufacturer.split()[0]
+    try:
+        if re.search(r"\b" + re.escape(det_word) + r"\b", mfr_name, re.IGNORECASE):
+            return True
+    except re.error:
+        pass
+    if raw_text:
+        first = mfr_name.split()[0]
+        if len(first) >= 3:
+            try:
+                if re.search(r"\b" + re.escape(first) + r"\b", raw_text, re.IGNORECASE):
+                    return True
+            except re.error:
+                pass
+    return False
 
 
 def _compute_composite(mfr_score, model_score, energy_score, fuel_score, output_score, mfr_val, model_val):
@@ -82,15 +114,39 @@ async def find_matches(
             manufacturer, model,
         )
 
-        # Raw text fallback: search OCR text against product model
+        # Raw text fallback: search OCR text against product model. Only trust
+        # it for long, distinctive model names — short fragments ("PS 300",
+        # "90", "BRITA" in "Britain") appear in any long nameplate text.
         raw_score = 0.0
-        if raw_text and product.model:
+        if raw_text and product.model and len(product.model.strip()) >= 8:
             raw_score = fuzz.partial_ratio(
                 raw_text.lower(), product.model.lower()
             )
 
-        # Require at least manufacturer OR model to match at a meaningful level
-        has_primary_match = mfr_score > 50 or model_score > 50 or raw_score > 70
+        # Require the matched product to actually agree with the detected
+        # fields. token_sort on brand names is loose ('truma' vs 'terma'
+        # scores 80, 'truma' vs 'termia' 73), so a moderate manufacturer
+        # score alone is not proof of a match. Confirmed brands come from
+        # hard evidence (substring / presence in the OCR text) or a near-
+        # identical fuzzy score. Short model names also produce false
+        # positives ("PS 300" matches the "300" inside "S 3004"), so paths
+        # that do not require a confirmed brand only apply to long,
+        # distinctive models.
+        brand_ok = _brand_consistent(mfr_name, manufacturer, raw_text)
+        long_model = product.model and len(product.model.strip()) >= 8
+        if manufacturer and model:
+            has_primary_match = (
+                brand_ok
+                or mfr_score >= 90
+                or (model_score >= 80 and long_model)
+                or (brand_ok and model_score >= 55)
+            )
+        elif manufacturer:
+            has_primary_match = brand_ok or mfr_score >= 90 or (mfr_score >= 70 and long_model)
+        elif model:
+            has_primary_match = (model_score >= 60 and long_model) or raw_score >= 90
+        else:
+            has_primary_match = raw_score >= 90
 
         if not has_primary_match:
             continue
@@ -99,7 +155,6 @@ async def find_matches(
         # Don't boost if manufacturer is clearly different
         if raw_score > 60 and (manufacturer is None or mfr_score > 30):
             composite = max(composite, raw_score * 0.5)
-
         if composite < 30.0:
             continue
 

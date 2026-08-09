@@ -23,6 +23,7 @@ class ProductDetail(BaseModel):
     fuel_type: Optional[str] = None
     release_date: Optional[datetime] = None
     created_at: datetime
+    raw_json: Optional[dict] = None
 
     model_config = {"from_attributes": True}
 
@@ -36,6 +37,8 @@ class ProductListItem(BaseModel):
     energy_class: Optional[str] = None
     fuel_type: Optional[str] = None
     manufacturer_name: Optional[str] = None
+    category_name: Optional[str] = None
+    heat_output: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

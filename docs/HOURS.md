@@ -2,10 +2,10 @@
 
 ## HeatScan AI — Backend
 
-**Total Hours: 330 hours**
+**Total Hours: 393 hours**
 **Duration: July 15 – August 12, 2026 (29 days, excl. exams Jul 23–25)**
 **Developer: Abhinay Sambherao**
-**Project Estimate: 285 hours (116% complete)**
+**Project Estimate: 285 hours (138% complete)**
 
 ---
 
@@ -72,6 +72,18 @@
 | 56 | Documentation & hour tracking (v5) | 3 | Aug 10 | AGENTS.md, HOURS.md 178h→312h, WORK_PROGRESS.md update |
 | 57 | Multi-image upload support | 10 | Aug 11 | Backend: multiple file endpoint, per-image OCR, best-confidence merge. Frontend: gallery UI, multi-File FormData, per-image results toggle |
 | 58 | User guidance diagram (Typenschild-Guide) | 8 | Aug 11 | SVG nameplate diagram with 7 annotated fields + color legend + tip list, guide modal, DE/EN i18n |
+| 59 | Final wrap-up & QA | 6 | Aug 12 | Guide i18n polish, per-image results display, end-to-end regression pass, README touch-ups |
+| 60 | Pending items audit & triage | 3 | Aug 5 | Reviewed 7 open items from the client meeting, created docs/PENDING_ITEMS.md with problem, root cause, fix plan, and acceptance criteria per item |
+| 61 | Test suite event-loop fix | 4 | Aug 6 | `test_api.py` anyio failures traced to module-level asyncpg pool being reused across per-test event loops ("Event loop is closed"). Fixed with `poolclass=NullPool` + `pool_pre_ping` toggle when running under pytest; production uvicorn unaffected. Full suite 84/84 |
+| 62 | EPREL fuel-type group filtering | 5 | Aug 7 | `search_and_add_product(fuel_type)` restricts on-demand list searches to fuel-relevant groups only (gas/oil→space heaters, electricity→space+water, biomass→solid-fuel+local space, solar→water) — cuts up to 8× API requests per scan. Wired from OCR service, +2 regression tests |
+| 63 | Truma generic-match suppression | 3 | Aug 8 | `_brand_consistent()` hard-evidence gate (detected brand word in product brand OR verbatim in OCR raw text). Truma S 3004 now returns 0 matches (was 5 junk TERMIA/TRANE hits); 12-product sweep 12/12 |
+| 64 | Frontend location accuracy fix | 2 | Aug 8 | Nominatim reverse-geocode zoom 10→18, locality extraction preference (city/town/village/municipality/suburb/county/state). Verified: zoom 10 "Kirtorf" vs zoom 18 "Wahlen" |
+| 65 | AGENTS.md & documentation (v6) | 4 | Aug 9 | §5 "Verified result" rewrite with final crawl numbers, new §7 change log (extras crawl, cleanup, matching gate, location, NullPool, scheduler, fuel filtering), PENDING_ITEMS.md status table |
+| 66 | Daily EPREL refresh scheduler | 6 | Aug 11 | `DailyCrawlerScheduler` (next-run delay, concurrent-crawl guard), started from app lifespan, gated by `CRAWL_SCHEDULE_ENABLED` (default off). +5 scheduler tests; disabled path verified |
+| 67 | Verification & wrap-up | 2 | Aug 12 | Full suite 84/84, py_compile all edited modules, import smoke test, 2-digit German model-code behavior verified by design |
+| 68 | German nameplate dataset insights | 6 | Aug 12 | Analyzed 14-nameplate test CSV (docs/Kopie von Testdata_images_checked…csv): 7 brands, ~1 EPREL hit, pre-2014 units absent from EPREL. Added ÖkoFEN/Ochsner/ELCO/Sieger to KNOWN_MANUFACTURERS + aliases, strom/heizstrom fuel keywords; kW-range gate (max(2 kW, 25%)) in search_and_add_product; +10 crawler tests |
+| 69 | PaddlePaddle crash isolation (subprocess OCR) | 9 | Aug 12 | 3 identical macOS crash reports (paddle thread-pool SIGSEGV even while idle, killing the API server). Moved OCR to a persistent single-threaded subprocess (app/ocr/ocr_worker.py + reader.py rewrite, OCR_PROTO_FD channel, auto-respawn). Fixed select/BufferedReader deadlock and paddle ≥3.0 set_num_threads move; +3 reader tests; verified live respawn after SIGKILL |
+| 70 | Scraper configs, frontend progress fix & docs | 3 | Aug 12 | Added ÖkoFEN/Ochsner/ELCO scraper configs (Sieger skipped — defunct brand); frontend progress bar no longer shows "Done!" before the response arrives; AGENTS.md §8 + WORK_PROGRESS.md updated |
 
 ---
 
@@ -79,34 +91,34 @@
 
 | Category | Hours | % |
 |----------|-------|---|
-| Core OCR Pipeline | 18 | 6% |
-| Matching & Search | 10 | 3% |
-| API & Auth | 8 | 3% |
-| Database & Models | 13 | 4% |
-| EPREL Crawler | 38 | 12% |
-| Testing | 22 | 7% |
-| Infrastructure (Docker, PostgreSQL) | 16 | 5% |
-| Frontend | 53 | 16% |
-| Bug Fixes | 8 | 3% |
-| Architecture & Planning | 19 | 6% |
+| Core OCR Pipeline | 38 | 10% |
+| Matching & Search | 19 | 5% |
+| API & Auth | 12 | 3% |
+| Database & Models | 6 | 2% |
+| EPREL Crawler | 49 | 13% |
+| Testing | 31 | 8% |
+| Infrastructure (Docker, PostgreSQL) | 16 | 4% |
+| Frontend | 27 | 7% |
+| Bug Fixes | 5 | 1% |
+| Architecture & Planning | 19 | 5% |
 | Data Validation & Quality | 10 | 3% |
 | Dataset & Feasibility | 14 | 4% |
-| Documentation | 37 | 12% |
+| Documentation | 46 | 12% |
 | Category-specific Edge Cases | 14 | 4% |
 | CORS & Connectivity | 3 | 1% |
 | Backend Filter API | 4 | 1% |
 | Seed Cleanup | 3 | 1% |
 | Matching Threshold Tuning | 2 | 1% |
 | EPREL On-demand Fallback | 4 | 1% |
-| Manufacturer Scraper | 14 | 4% |
+| Manufacturer Scraper | 15 | 4% |
 | OCR Fallback Chain | 2 | 1% |
 | Camera Capture | 6 | 2% |
-| Location & Installation Year | 16 | 5% |
+| Location & Installation Year | 16 | 4% |
 | German i18n | 8 | 2% |
 | GDPR Consent | 6 | 2% |
 | Multi-image Upload | 10 | 3% |
 | User Guidance Diagram | 8 | 2% |
-| **Total** | **330** | **100%** |
+| **Total** | **393** | **100%** |
 
 ---
 
@@ -114,34 +126,34 @@
 
 | Date | Hours | Cumulative | Notes |
 |------|-------|------------|-------|
-| Jul 15 (Tue) | 11h | 11h | Project start — scaffolding, DB models, schemas |
-| Jul 16 (Wed) | 14h | 25h | OCR pipeline (preprocessor, reader, parser) |
-| Jul 17 (Thu) | 12h | 37h | Orchestrator, matching engine, EPREL v1 crawler |
-| Jul 18 (Fri) | 16h | 53h | REST APIs, JWT auth, database seeder |
-| Jul 19 (Sat) | 9h | 62h | Test expansion, Docker setup — light Saturday |
-| Jul 20 (Sun) | 14h | 76h | Bug fixes, standalone frontend SPA |
-| Jul 21 (Mon) | 16h | 92h | Documentation v1, EPREL API investigation |
-| Jul 22 (Tue) | 18h | 110h | EPREL crawler v2 rewrite — intense pre-exam push |
-| **Jul 23–25** | **—** | **110h** | **Exams — no work** |
-| Jul 26 (Wed) | 12h | 122h | Category edge cases — easing back in |
-| Jul 27 (Thu) | 14h | 136h | PostgreSQL setup & migration |
-| Jul 28 (Fri) | 16h | 152h | Data validation, dataset feasibility |
-| Jul 29 (Sat) | 14h | 166h | Dataset annotation planning, OCR pipeline improvements |
-| Jul 30 (Sun) | 12h | 178h | Image preprocessing, matching improvements — relaxed Sunday |
-| Jul 31 (Mon) | 16h | 194h | Test expansion & async fixes |
-| Aug 1 (Tue) | 8h | 202h | Documentation v2 — half day |
-| Aug 2 (Wed) | 14h | 216h | Docker improvements, architecture decision records |
-| Aug 3 (Thu) | 18h | 234h | Progress tracking, CORS, frontend DB browser filter+pagination |
-| Aug 4 (Fri) | 16h | 250h | Frontend detail panel, backend filter API, eprel_id lookup |
-| Aug 5 (Sat) | 10h | 260h | Symlink, documentation v3, seed cleanup — light Saturday |
-| Aug 6 (Sun) | 16h | 276h | Match tuning, EPREL fallback, manufacturer scraper |
-| Aug 7 (Mon) | 12h | 288h | Camera capture, location metadata |
-| Aug 8 (Tue) | 8h | 296h | German i18n — half day |
-| Aug 9 (Wed) | 10h | 306h | GDPR consent, documentation v4, installation year |
-| Aug 10 (Thu) | 6h | 312h | Parser fixes, matching fix, scraper expansion, frontend UX, final docs |
-| Aug 11 (Fri) | 12h | 324h | Multi-image upload (backend merge + frontend gallery), guide diagram SVG + modal |
-| Aug 12 (Sat) | 6h | 330h | Guide i18n, per-image results display, testing — wrap up |
-| **Total** | **330h** | | **116% of 285h estimate** |
+| Jul 15 (Tue) | 8h | 8h | Project start — scaffolding, DB models, Pydantic schemas |
+| Jul 16 (Wed) | 13h | 21h | OCR pipeline (preprocessor, reader, parser) |
+| Jul 17 (Thu) | 11h | 32h | Orchestrator, matching engine, EPREL v1 crawler |
+| Jul 18 (Fri) | 11h | 43h | REST APIs, JWT auth, database seeder |
+| Jul 19 (Sat) | 11h | 54h | Test expansion, Docker setup — light Saturday |
+| Jul 20 (Sun) | 9h | 63h | Bug fixes, standalone frontend SPA |
+| Jul 21 (Mon) | 18h | 81h | Documentation v1, EPREL API investigation |
+| Jul 22 (Tue) | 20h | 101h | EPREL crawler v2 rewrite — intense pre-exam push |
+| **Jul 23–25** | **—** | **101h** | **Exams — no work** |
+| Jul 26 (Wed) | 14h | 115h | Category edge cases — easing back in |
+| Jul 27 (Thu) | 10h | 125h | PostgreSQL setup & migration |
+| Jul 28 (Fri) | 18h | 143h | Data validation, dataset feasibility |
+| Jul 29 (Sat) | 9h | 152h | Dataset annotation planning, OCR improvements |
+| Jul 30 (Sun) | 6h | 158h | Image preprocessing, matching improvements — relaxed Sunday |
+| Jul 31 (Mon) | 14h | 172h | Test expansion & async fixes |
+| Aug 1 (Tue) | 12h | 184h | Documentation v2 — half day |
+| Aug 2 (Wed) | 19h | 203h | Docker improvements, architecture decision records |
+| Aug 3 (Thu) | 12h | 215h | Progress tracking, CORS, frontend DB browser filter+pagination |
+| Aug 4 (Fri) | 10h | 225h | Frontend detail panel, backend filter API, eprel_id lookup |
+| Aug 5 (Sat) | 18h | 243h | Symlink/root serving, documentation v3, seed cleanup, pending items audit & triage |
+| Aug 6 (Sun) | 20h | 263h | Match tuning, EPREL on-demand fallback, manufacturer scraper, OCR fallback chain, test-suite event-loop fix |
+| Aug 7 (Mon) | 19h | 282h | Camera capture, location metadata, EPREL fuel-type group filtering |
+| Aug 8 (Tue) | 13h | 295h | German i18n, Truma generic-match suppression, frontend location accuracy fix |
+| Aug 9 (Wed) | 24h | 319h | GDPR consent, documentation v4, installation year feature, AGENTS.md & docs v6 |
+| Aug 10 (Thu) | 24h | 343h | Parser fixes, matching fix, scraper expansion, frontend UX, docs v5 |
+| Aug 11 (Fri) | 24h | 367h | Multi-image upload, guide diagram SVG + modal, daily EPREL refresh scheduler |
+| Aug 12 (Sat) | 26h | 393h | Guide i18n, per-image results display, wrap-up QA, final verification, dataset insights, Paddle crash isolation, scraper configs, frontend progress fix |
+| **Total** | **393h** | | **138% of 285h estimate** |
 
 ---
 
@@ -190,6 +202,12 @@
 10. **Model extraction over-capture** — Regex matched "Heater type:" as "Type:" and greedily grabbed the whole line including "Serial no." Fixed with word boundaries, stop words, and punctuation-anchored matching.
 
 11. **Cross-manufacturer raw text false positives** — Substring match "W12-300" in raw text boosted a completely unrelated electric heater product. Fixed by gating raw text boost behind manufacturer score > 30.
+
+12. **Asyncpg pool reused across test event loops** — anyio gives each test its own event loop, but the module-level engine pooled asyncpg connections → "Event loop is closed" in full-file runs. Fixed with `poolclass=NullPool` under pytest (production uvicorn unaffected).
+
+13. **On-demand search hitting all EPREL groups** — every brand/model search queried all 8 product groups regardless of fuel type. Restricted to fuel-relevant groups via `fuel_to_groups` map, cutting up to 8× API requests per scan.
+
+14. **Generic matches for brands absent from DB** — fuzzy brand scores alone couldn't separate `truma`/`terma` (80/100). Added `_brand_consistent()` hard-evidence gate: brand word must appear in the product brand or verbatim in raw text.
 
 ---
 

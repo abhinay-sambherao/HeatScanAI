@@ -17,7 +17,9 @@ from app.models.crawler_log import CrawlerLog
 router = APIRouter(prefix="/crawler", tags=["Crawler"])
 
 
-async def _run_crawler_background(log_id: uuid.UUID, max_pages: int) -> None:
+async def _run_crawler_background(
+    log_id: uuid.UUID, max_pages: int, include_extras: bool, groups: list[str] | None
+) -> None:
     """Run crawler in background using a fresh database session."""
     async with async_session_factory() as db:
         try:
@@ -28,7 +30,12 @@ async def _run_crawler_background(log_id: uuid.UUID, max_pages: int) -> None:
                 log.status = "running"
                 await db.flush()
 
-            result = await run_crawler(db, max_pages_per_group=max_pages)
+            result = await run_crawler(
+                db,
+                max_pages_per_group=max_pages,
+                include_extras=include_extras,
+                only_groups=groups,
+            )
 
             # Merge the results into the original log
             log.status = result.status
@@ -49,9 +56,12 @@ async def _run_crawler_background(log_id: uuid.UUID, max_pages: int) -> None:
 @router.post("/run", response_model=CrawlerRunResponse)
 async def trigger_crawler(
     max_pages: int = Query(40, ge=0, le=10000, description="Max pages per group (0=unlimited, 40=1000 products)"),
+    include_extras: bool = Query(False, description="Include control/solar groups (off by default)"),
+    groups: str = Query(None, description="Comma-separated group slugs to crawl (e.g. spaceheaters,waterheaters). Overrides include_extras."),
     db: AsyncSession = Depends(get_db),
 ) -> CrawlerRunResponse:
     """Trigger an EPREL crawl job. Runs asynchronously in the background."""
+    group_list = [g.strip() for g in groups.split(",") if g.strip()] if groups else None
     log = CrawlerLog(
         id=uuid.uuid4(),
         started_at=datetime.now(timezone.utc),
@@ -61,7 +71,7 @@ async def trigger_crawler(
     db.add(log)
     await db.flush()
 
-    asyncio.create_task(_run_crawler_background(log.id, max_pages))
+    asyncio.create_task(_run_crawler_background(log.id, max_pages, include_extras, group_list))
 
     return CrawlerRunResponse(
         job_id=log.id,

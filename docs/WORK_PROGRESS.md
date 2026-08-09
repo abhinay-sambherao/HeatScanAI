@@ -299,11 +299,12 @@ Based on the 285-hour estimate submitted to EVH.
 
 ## All Milestones Complete ✓
 
-All 21 milestones totaling 285 estimated hours have been completed. Actual hours spent: **330h** (116% of estimate), reflecting new feature additions (multi-image upload, user guidance diagram) on top of the original scope. The 45-hour overrun was driven by:
+All 21 milestones totaling 285 estimated hours have been completed. Actual hours spent: **393h** (138% of estimate), reflecting new feature additions (multi-image upload, user guidance diagram) and hardening work (data completion, cleanup, matching gate, test-suite fixes, daily scheduler, nameplate dataset insights, Paddle crash isolation) on top of the original scope. The 108-hour overrun was driven by:
 
 - **EPREL API reverse engineering** (14h) — undocumented JSON API required overnight research
 - **Frontend scope expansion** (35h vs 8h estimated) — camera capture, location metadata, i18n, GDPR, DB browser
 - **Manufacturer website scraper** (14h) — originally not in scope, added for fallback chain completeness
+- **Data completion & cleanup** (Aug 5–12) — full 5-group model crawl (128,378 records) + extras crawl (+2,034), orphan/test-record cleanup with backup, Truma generic-match suppression, fuel-type group filtering, daily refresh scheduler
 
 ### Key Dependencies Resolved
 
@@ -311,3 +312,21 @@ All 21 milestones totaling 285 estimated hours have been completed. Actual hours
 2. ⚠️ **GPU access** — Worked entirely CPU-bound with PaddleOCR (acceptable for dev/prototype)
 3. ✅ **Production deployment** — Docker Compose with PostgreSQL tested and documented
 4. ✅ **EPREL API stability** — Offset sampling workaround implemented for pagination bug
+
+## Post-Milestone Hardening (Aug 5–12) — Pending Items #1–#7
+
+All 7 pending items from the client meeting are documented in `docs/PENDING_ITEMS.md` and implemented:
+
+1. ✅ **Fuel-type group filtering** — on-demand EPREL searches restricted to fuel-relevant groups (up to 8× fewer API calls)
+2. ✅ **Truma generic-match suppression** — `_brand_consistent()` hard-evidence gate; Truma S 3004 → 0 matches
+3. ✅ **Frontend location accuracy** — Nominatim `zoom=18` + extraction chain; verified live (Wahlen/Kirtorf, Halle Marktplatz). Browser GPS run recommended to confirm end-to-end
+4. ✅ **AGENTS.md refresh** — §5 rewritten with final crawl numbers, §7 change log added
+5. ✅ **Test-suite event-loop fix** — NullPool under pytest; full suite 84/84
+6. ✅ **Daily EPREL refresh scheduler** — `DailyCrawlerScheduler` (opt-in via `CRAWL_SCHEDULE_ENABLED`)
+7. ✅ **2-digit German model codes** — verified by design (label path resolves; generic path filters intentionally)
+
+### German nameplate dataset insights + Paddle crash isolation (Aug 12)
+
+- **Dataset analysis** — `docs/Kopie von Testdata_images_checked.xlsx - Tabelle1.csv` (14 nameplate cases): 7 brands, ~1 clean EPREL hit; pre-2014 units legally absent from EPREL. Implemented: 4 missing manufacturers (ÖkoFEN, Ochsner, ELCO, Sieger) + aliases, `strom`/`heizstrom` fuel keywords, and a **kW-range gate** in `search_and_add_product` (band = `max(2 kW, 25%)` of detected heat output).
+- **Scraper configs** — `ökofen` (oekofen.com), `ochsner` (ochsner.com), `elco` (elco.net). Sieger skipped: brand discontinued, former domains parked/redirect to Bosch.
+- **PaddlePaddle 3.3.1 crash isolation** — three identical macOS crash reports (`paddle::ThreadPoolTempl::WorkerLoop` SIGSEGV, even idle) took down the API server. OCR moved to a persistent **subprocess** (`app/ocr/ocr_worker.py` + rewritten `reader.py`, single-threaded Paddle, `OCR_PROTO_FD` channel); fixed a `select`/buffered-reader deadlock and the paddle ≥3.0 `set_num_threads` move. Verified live: worker respawns after `SIGKILL`, parent survives. Full suite **97 passed**.

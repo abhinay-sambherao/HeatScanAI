@@ -24,18 +24,36 @@ class Settings(BaseSettings):
         default=1440, description="JWT token expiry in minutes (24h)"
     )
     ALLOWED_ORIGINS: str = Field(
-        default="http://localhost:3000,http://localhost:8000",
+        default="http://localhost:3000,http://localhost:8000,http://127.0.0.1:8000,null",
         description="Comma-separated allowed CORS origins",
+    )
+    ALLOWED_ORIGINS_REGEX: str = Field(
+        default=r"https://(.*\.)?netlify\.app|https://(.*\.)?abhiinayy\.in|https://.*\.lhr\.life|https://.*\.trycloudflare\.com",
+        description="Regex of additional allowed CORS origins (e.g. Netlify preview/tunnel hosts)",
     )
     EPREL_BASE_URL: str = Field(
         default="https://eprel.ec.europa.eu",
         description="EPREL API base URL",
+    )
+    EPREL_API_KEY: str = Field(
+        default="",
+        description="EPREL Public API key. Used only for list endpoints that return >1 model. Add to .env as EPREL_API_KEY=your-key",
     )
     MAX_UPLOAD_SIZE_MB: int = Field(default=20, description="Max file upload size in MB")
     OCR_CONFIDENCE_THRESHOLD: float = Field(
         default=0.5, description="Minimum OCR confidence to accept"
     )
     LOG_LEVEL: str = Field(default="INFO", description="Logging level")
+    CRAWL_SCHEDULE_ENABLED: bool = Field(
+        default=False,
+        description="Enable the daily EPREL re-crawl scheduler (default off)",
+    )
+    CRAWL_SCHEDULE_HOUR: int = Field(
+        default=3, ge=0, le=23, description="Daily crawl hour (UTC)"
+    )
+    CRAWL_SCHEDULE_MINUTE: int = Field(
+        default=0, ge=0, le=59, description="Daily crawl minute (UTC)"
+    )
 
     @property
     def allowed_origins_list(self) -> list[str]:

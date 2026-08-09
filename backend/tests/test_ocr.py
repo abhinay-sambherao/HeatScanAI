@@ -42,6 +42,39 @@ class TestExtractManufacturer:
     def test_case_insensitive(self):
         assert extract_manufacturer("VIESSMANN VITODENS") == "Viessmann"
 
+    # German market majors — umlaut/hyphen nameplate spellings must resolve
+    # to the same canonical brand used in the DB.
+    def test_finds_broetje_umlaut(self):
+        assert extract_manufacturer("Brötje EuroCondens SBK 15") == "Brötje"
+
+    def test_finds_broetje_ascii(self):
+        assert extract_manufacturer("Brotje EuroCondens SBK 15") == "Brötje"
+
+    def test_finds_broetje_transcription(self):
+        assert extract_manufacturer("Broetje WGB 22") == "Brötje"
+
+    def test_finds_stiebel_eltron_space(self):
+        assert extract_manufacturer("STIEBEL ELTRON WWK 300") == "Stiebel Eltron"
+
+    def test_finds_stiebel_eltron_hyphen(self):
+        assert extract_manufacturer("Stiebel-Eltron WWK 300") == "Stiebel Eltron"
+
+    def test_finds_vaillant_typo_valiant(self):
+        assert extract_manufacturer("Valiant ecoTEC 837") == "Vaillant"
+
+    def test_finds_viessmann_typo_viesman(self):
+        assert extract_manufacturer("Viesman Vitodens 200") == "Viessmann"
+
+    def test_finds_weishaupt(self):
+        assert extract_manufacturer("Weishaupt WTC-GB 15") == "Weishaupt"
+
+    def test_finds_wolf(self):
+        assert extract_manufacturer("Wolf CGB-2-20") == "Wolf"
+
+    def test_finds_bosch_buderus_junkers(self):
+        assert extract_manufacturer("Bosch Condens 5000") == "Bosch"
+        assert extract_manufacturer("Junkers Cerapur 9000") == "Junkers"
+
 
 class TestExtractModel:
     def test_extracts_model_prefix(self):

@@ -43,3 +43,7 @@ htmlcov/
 
 # Logs
 *.log
+
+# Frontend lives in its own repo (HeatScanAI-frontend); the dir here is a symlink
+frontend
+.obsidian/

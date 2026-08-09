@@ -24,7 +24,6 @@ MANUFACTURERS = [
     "Buderus",
     "Bosch",
     "Wolf",
-    "Weishaupt",
     "Stiebel Eltron",
     "Protherm",
     "Vailant",
@@ -123,7 +122,6 @@ PRODUCTS = [
     {"eprel_id": "EPREL-046", "model": "NIBE F1345-12", "energy_class": "A++", "fuel_type": "electricity", "heat_output": "12 kW", "manufacturer": "NIBE", "category": "Heat pumps - Ground-source", "efficiency": "COP 5.0"},
     {"eprel_id": "EPREL-047", "model": "NIBE F1345-18", "energy_class": "A++", "fuel_type": "electricity", "heat_output": "18 kW", "manufacturer": "NIBE", "category": "Heat pumps - Ground-source", "efficiency": "COP 4.8"},
     {"eprel_id": "EPREL-048", "model": "WPL 25 Classic", "energy_class": "A++", "fuel_type": "electricity", "heat_output": "25 kW", "manufacturer": "Wolf", "category": "Heat pumps - Ground-source", "efficiency": "COP 5.1"},
-    {"eprel_id": "EPREL-049", "model": "GSW 200 HL", "energy_class": "A++", "fuel_type": "electricity", "heat_output": "20 kW", "manufacturer": "Weishaupt", "category": "Heat pumps - Ground-source", "efficiency": "COP 4.9"},
     {"eprel_id": "EPREL-050", "model": "EWPE-C 060C", "energy_class": "A++", "fuel_type": "electricity", "heat_output": "6 kW", "manufacturer": "Stiebel Eltron", "category": "Heat pumps - Ground-source", "efficiency": "COP 5.4"},
     {"eprel_id": "EPREL-051", "model": "EWPE-C 012C", "energy_class": "A++", "fuel_type": "electricity", "heat_output": "12 kW", "manufacturer": "Stiebel Eltron", "category": "Heat pumps - Ground-source", "efficiency": "COP 5.2"},
 
@@ -144,8 +142,8 @@ PRODUCTS = [
     {"eprel_id": "EPREL-061", "model": "FKK-AE 2.0", "energy_class": "A", "fuel_type": "solar", "heat_output": "2.0 m²", "manufacturer": "Wolf", "category": "Solar thermal collectors", "efficiency": "76%"},
 
     # ─── Warm air heaters ──────────────────────────────────────────
-    {"eprel_id": "EPREL-062", "model": "WarmAir 3000", "energy_class": "B", "fuel_type": "gas", "heat_output": "30 kW", "manufacturer": "Weishaupt", "category": "Warm air heaters", "efficiency": "85%"},
-    {"eprel_id": "EPREL-063", "model": "LGB 20-40T", "energy_class": "C", "fuel_type": "oil", "heat_output": "40 kW", "manufacturer": "Weishaupt", "category": "Warm air heaters", "efficiency": "80%"},
+    # NOTE: no seed entries — "Weishaupt WarmAir 3000" was verified as
+    # non-existent and removed (never seeded into the live database).
 
     # ─── Additional real-world popular models ───────────────────────
     {"eprel_id": "EPREL-064", "model": "Ariston Clas One 25", "energy_class": "A", "fuel_type": "gas", "heat_output": "25 kW", "manufacturer": "Ariston", "category": "Gas boilers", "efficiency": "89%"},

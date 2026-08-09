@@ -205,6 +205,12 @@ MANUFACTURER_SITES: dict[str, dict[str, Any]] = {
         "product_link_selector": "a[href*='/produkte/'], a[href*='/product/']",
         "name_selector": "h1, .product-title",
     },
+    "brötje": {
+        "search_url": "https://www.brotje.de/produkte/?q={model}",
+        "base_url": "https://www.brotje.de",
+        "product_link_selector": "a[href*='/produkte/'], a[href*='/product/']",
+        "name_selector": "h1, .product-title",
+    },
     "viadrus": {
         "search_url": "https://www.viadrus.cz/vyrobky/?q={model}",
         "base_url": "https://www.viadrus.cz",
@@ -250,6 +256,24 @@ MANUFACTURER_SITES: dict[str, dict[str, Any]] = {
     "truma": {
         "search_url": "https://www.truma.com/de/search?q={model}",
         "base_url": "https://www.truma.com",
+        "product_link_selector": "a[href*='/produkte/'], a[href*='/product/']",
+        "name_selector": "h1, .product-title",
+    },
+    "ökofen": {
+        "search_url": "https://www.oekofen.com/de-de/pelletheizung",
+        "base_url": "https://www.oekofen.com",
+        "product_link_selector": "a[href*='/de-de/'], a[href*='/produkte/']",
+        "name_selector": "h1, .product-title",
+    },
+    "ochsner": {
+        "search_url": "https://www.ochsner.com/de-de",
+        "base_url": "https://www.ochsner.com",
+        "product_link_selector": "a[href*='/de-de/'], a[href*='/produkt/']",
+        "name_selector": "h1, .product-title",
+    },
+    "elco": {
+        "search_url": "https://www.elco.net/de/produkte.html",
+        "base_url": "https://www.elco.net",
         "product_link_selector": "a[href*='/produkte/'], a[href*='/product/']",
         "name_selector": "h1, .product-title",
     },

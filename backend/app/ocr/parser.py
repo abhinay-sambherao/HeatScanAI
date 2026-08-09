@@ -5,30 +5,47 @@ from __future__ import annotations
 import re
 
 
+# German market majors (~90% of installed heating systems: Bosch Group,
+# Vaillant, Viessmann, Stiebel Eltron, Wolf, Weishaupt, Brötje) are checked
+# first. Umlaut/hyphen variants are included so German nameplate spellings
+# ("Brötje", "STIEBEL-ELTRON") resolve to the same brand.
 KNOWN_MANUFACTURERS = [
-    "Viessmann", "Vaillant", "Buderus", "Bosch", " Junkers",
-    "Wolf", "Weishaupt", "Stiebel Eltron", "Daikin", "Mitsubishi",
-    "Samsung", "LG", "NIBE", "Panasonic", "Glow-worn",
-    "Ideal", "Worcester", "Baxi", "Ferroli", "Ariston", "Beretta",
-    "Biasi", "Glow-worm", "Potterton", "Remeha", "Intergas",
-    "Atag", "Nefit", "AWB", "Brotje", "Viadrus", "Dakins",
-    "Chaffoteaux", "De Dietrich", "Saunier Duval", "Vailant",
-    "ATMOS", "Thermia", "CLAGE", "Stiebel", "Eltron",
-    "Truma",
+    "Bosch", "Buderus", "Junkers",
+    "Vaillant", "Viessmann",
+    "Stiebel Eltron", "Stiebel-Eltron",
+    "Wolf", "Weishaupt",
+    "Brötje", "Broetje", "Brotje",
+    "Daikin", "Mitsubishi", "Samsung", "LG", "NIBE", "Panasonic",
+    "Glow-worn", "Ideal", "Worcester", "Baxi", "Ferroli", "Ariston",
+    "Beretta", "Biasi", "Glow-worm", "Potterton", "Remeha", "Intergas",
+    "Atag", "Nefit", "AWB", "Viadrus", "Dakins", "Chaffoteaux",
+    "De Dietrich", "Saunier Duval", "Vailant", "ATMOS", "Thermia",
+    "CLAGE", "Stiebel", "Eltron", "Truma",
+    "ÖkoFEN", "OekoFEN", "Ochsner", "Ochsner Wärmepumpen", "ELCO",
+    "Sieger",
 ]
 
 # Common OCR misspellings mapped to canonical names
 MANUFACTURER_ALIASES = {
     "villent": "Vaillant",
     "vaillant": "Vaillant",
-    "vaillant": "Vaillant",
+    "vailant": "Vaillant",
+    "valiant": "Vaillant",
+    "vaillat": "Vaillant",
     "viessman": "Viessmann",
-    "viessman": "Viessmann",
+    "viessmann": "Viessmann",
+    "viesman": "Viessmann",
+    "viesmann": "Viessmann",
+    "vissmann": "Viessmann",
     "buderu": "Buderus",
-    "bosCH": "Bosch",
     "bosch": "Bosch",
-    "wolF": "Wolf",
     "wolf": "Wolf",
+    "weishaupt": "Weishaupt",
+    "stiebel-eltron": "Stiebel Eltron",
+    "stiebeleltron": "Stiebel Eltron",
+    "brötje": "Brötje",
+    "broetje": "Brötje",
+    "brotje": "Brötje",
     "daikin": "Daikin",
     "mitsubis": "Mitsubishi",
     "mitsubishi": "Mitsubishi",
@@ -38,6 +55,11 @@ MANUFACTURER_ALIASES = {
     "baxi": "Baxi",
     "ferroli": "Ferroli",
     "worcester": "Worcester",
+    "ökofen": "ÖkoFEN",
+    "oekofen": "ÖkoFEN",
+    "ochsner": "Ochsner",
+    "elco": "ELCO",
+    "sieger": "Sieger",
 }
 
 ENERGY_CLASS_PATTERN = re.compile(r"(?<![A-Za-z])(A\+{0,3}|[B-G])(?![A-Za-z+])", re.IGNORECASE)
@@ -60,7 +82,7 @@ MODEL_GENERIC = re.compile(r"\b([A-Z]{1,3}[\s\-]?\d{2,5}[A-Za-z]?(?:[\s\-]\d{2,4
 FUEL_KEYWORDS = {
     "gas": ["gas", "erdgas", "natural gas", "methane", "butane", "propane", "lpg"],
     "oil": ["oil", "öl", "heating oil", "heizöl", "diesel"],
-    "electricity": ["electric", "elektrisch", "heat pump", "wärmepumpe", "electricity"],
+    "electricity": ["electric", "elektrisch", "heat pump", "wärmepumpe", "electricity", "strom", "heizstrom"],
     "wood": ["wood", "holz", "pellet", "biomass", "biomasse"],
     "solar": ["solar", "photovoltaic", "pv"],
     "district_heating": ["district heating", "fernwärme", "blockheizkraftwerk"],

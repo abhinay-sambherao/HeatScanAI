@@ -12,7 +12,8 @@ from fastapi.responses import FileResponse
 from app.config import settings
 from app.core.logging import setup_logging, get_logger
 from app.database import init_db
-from app.api import ocr, products, manufacturers, crawler, health, admin
+from app.scheduler import DailyCrawlerScheduler
+from app.api import ocr, products, manufacturers, categories, crawler, health, admin
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 
@@ -25,7 +26,14 @@ async def lifespan(app: FastAPI):
     logger.info("starting_service", version="1.0.0")
     await init_db()
     logger.info("database_ready")
+    scheduler = DailyCrawlerScheduler(
+        settings.CRAWL_SCHEDULE_ENABLED,
+        hour=settings.CRAWL_SCHEDULE_HOUR,
+        minute=settings.CRAWL_SCHEDULE_MINUTE,
+    )
+    scheduler.start()
     yield
+    await scheduler.stop()
     logger.info("shutting_down")
 
 
@@ -41,6 +49,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins_list,
+        allow_origin_regex=settings.ALLOWED_ORIGINS_REGEX,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -50,9 +59,11 @@ def create_app() -> FastAPI:
     app.include_router(ocr.router)
     app.include_router(products.router)
     app.include_router(manufacturers.router)
+    app.include_router(categories.router)
     app.include_router(crawler.router)
     app.include_router(admin.router)
 
+    @app.get("/")
     @app.get("/app")
     async def serve_frontend():
         """Serve the frontend SPA."""

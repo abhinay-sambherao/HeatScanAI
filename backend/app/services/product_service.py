@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.product import Product
 from app.models.manufacturer import Manufacturer
+from app.models.category import Category
 
 
 async def get_product_by_id(db: AsyncSession, product_id: uuid.UUID) -> Product | None:
@@ -27,8 +28,11 @@ async def list_products(
     page: int = 1,
     page_size: int = 20,
     search: str | None = None,
+    category: str | None = None,
+    energy_class: str | None = None,
+    fuel_type: str | None = None,
 ) -> tuple[list[Product], int]:
-    """List products with pagination and optional search.
+    """List products with pagination and optional search/filters.
 
     Returns:
         Tuple of (products list, total count).
@@ -38,20 +42,27 @@ async def list_products(
         selectinload(Product.category),
     )
 
-    if search:
-        pattern = f"%{search}%"
-        base_stmt = base_stmt.where(
-            Product.model.ilike(pattern) | Product.eprel_id.ilike(pattern)
-        )
-
     count_stmt = select(func.count()).select_from(Product)
+
+    filters = []
     if search:
         pattern = f"%{search}%"
-        count_stmt = count_stmt.where(
-            Product.model.ilike(pattern) | Product.eprel_id.ilike(pattern)
-        )
+        filters.append(Product.model.ilike(pattern) | Product.eprel_id.ilike(pattern))
+    if category:
+        filters.append(Product.category.has(Category.name == category))
+    if energy_class:
+        filters.append(Product.energy_class == energy_class)
+    if fuel_type:
+        filters.append(Product.fuel_type == fuel_type)
 
-    total_result = await db.execute(count_stmt)
+    if filters:
+        base_stmt = base_stmt.where(*filters)
+
+    count_filtered = count_stmt
+    if filters:
+        count_filtered = count_filtered.where(*filters)
+
+    total_result = await db.execute(count_filtered)
     total = total_result.scalar() or 0
 
     stmt = base_stmt.offset((page - 1) * page_size).limit(page_size)
@@ -81,6 +92,30 @@ async def list_manufacturers(db: AsyncSession) -> list[dict]:
             "name": row.name,
             "product_count": row.product_count,
             "created_at": row.created_at,
+        }
+        for row in result.all()
+    ]
+
+
+async def list_categories(db: AsyncSession) -> list[dict]:
+    """List all categories with product counts."""
+    stmt = (
+        select(
+            Category.id,
+            Category.name,
+            Category.eprel_category_id,
+            func.count(Product.id).label("product_count"),
+        )
+        .outerjoin(Product, Category.id == Product.category_id)
+        .group_by(Category.id, Category.name, Category.eprel_category_id)
+        .order_by(Category.name)
+    )
+    result = await db.execute(stmt)
+    return [
+        {
+            "id": row.id,
+            "name": row.name,
+            "product_count": row.product_count,
         }
         for row in result.all()
     ]
