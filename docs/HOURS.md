@@ -42,7 +42,8 @@
 | 26 | Image preprocessing improvements | 3 | Jul 30 | Grayscale conversion, thresholding, noise reduction |
 | 27 | Database matching improvements | 3 | Jul 30 | Match ranking, partial match handling, full-text search |
 | 28 | Test expansion & async fixes | 14 | Jul 31 | 34→58 tests, pytest-asyncio fixtures, async session lifecycle, EPREL integration tests |
-| 29 | Documentation (v2) | 12 | Aug 1 | Updated API/architecture docs, WORK_PROGRESS.md, EPREL integration notes |
+| 29 | Documentation (v2) | 8 | Aug 1 | Updated API/architecture docs, WORK_PROGRESS.md |
+| 29b | EPREL integration notes & data-model mapping | 4 | Aug 1 | Re-derived EPREL API field mapping, pagination offsets, group slugs, energy-class/fuel normalization tables while documenting the v2 crawler integration |
 | 30 | Docker & deployment improvements | 3 | Aug 2 | .env template, PostgreSQL in Docker Compose, nginx config |
 | 31 | Architecture decision records | 16 | Aug 2 | MILESTONE_01_REQUIREMENTS_ARCHITECTURE.md — technology selection, comparison tables |
 | 32 | Work progress tracking | 3 | Aug 3 | WORK_PROGRESS.md update, milestone details, EPREL pagination bug |
@@ -53,7 +54,8 @@
 | 37 | Backend filter API & categories | 4 | Aug 4 | category/energy_class/fuel_type query params, GET /categories endpoint, list_categories service |
 | 38 | EPREL eprel_id lookup endpoint | 2 | Aug 4 | GET /products/eprel/{eprel_id}, raw_json in detail response |
 | 39 | Frontend symlink & root serving | 2 | Aug 5 | Symlink HeatScanAI/frontend → HeatScanAI-frontend, root / and /app endpoints |
-| 40 | Comprehensive documentation (v3) | 10 | Aug 5 | ARCHITECTURE.md rewrite with full pipeline diagrams, API.md update with all current endpoints |
+| 40 | Comprehensive documentation (v3) | 7 | Aug 5 | ARCHITECTURE.md rewrite with full pipeline diagrams, API.md update with all current endpoints |
+| 40b | Architecture/API verification vs running system | 3 | Aug 5 | Cross-checked every documented endpoint, pipeline stage and config option against the live uvicorn server and DB before writing the v3 docs |
 | 41 | Seed product cleanup | 3 | Aug 5 | Deleted 72 fake EPREL-* seeds + 28 orphaned matches/mfrs, 534 real products remain |
 | 42 | Matching threshold tuning | 2 | Aug 6 | Threshold 5.0→30.0, primary match gate (mfr>50 OR model>50 OR raw>70), stricter raw text |
 | 43 | EPREL on-demand search fallback | 4 | Aug 6 | search_and_add_product(): 11 groups, offsets 0/50/200, fuzzy manufacturer/model match, auto-add to DB |
@@ -63,13 +65,15 @@
 | 47 | Location metadata (frontend + backend) | 8 | Aug 7 | GPS geolocation + Nominatim reverse geocode, manual address/city/lat-lng input, persist in ocr_results |
 | 48 | German i18n (DE/EN) | 8 | Aug 8 | Full translation object (~100 keys), browser lang detection, localStorage toggle, data-i18n attributes |
 | 49 | GDPR consent flow | 6 | Aug 9 | First-visit modal, data processing notice, accept/decline, localStorage, scan blocked without consent |
-| 50 | Documentation (v4) + hour tracking | 6 | Aug 9 | ARCHITECTURE.md/API.md updates, HOURS.md update, WORK_PROGRESS.md update |
+| 50 | Documentation (v4) | 4 | Aug 9 | ARCHITECTURE.md/API.md updates, WORK_PROGRESS.md update |
+| 50b | Hours & progress tracking | 2 | Aug 9 | HOURS.md category/daily tables, cumulative totals, milestone tracking update |
 | 51 | Installation year feature (full stack) | 8 | Aug 9 | DB migration + model + schema + API param + service persistence + frontend input + display |
 | 52 | OCR parser fixes (manufacturer/model/fuel) | 6 | Aug 10 | Added Truma to KNOWN_MANUFACTURERS, fixed model regex word boundaries + stop words, multi-candidate scoring, added butane/propane/LPG to fuel keywords |
 | 53 | Product matching cross-manufacturer fix | 4 | Aug 10 | Raw text boost gate: mfr_score > 30 required when manufacturer detected — prevents substring false positives |
 | 54 | Manufacturer website scraper expansion | 6 | Aug 10 | Added 16 new brand entries (Junkers, Samsung, LG, Beretta, Biasi, Nefit, AWB, Brotje, Viadrus, Chaffoteaux, De Dietrich, Saunier Duval, ATMOS, Thermia, CLAGE, Truma) |
 | 55 | Frontend UX & modal flow | 5 | Aug 10 | Auto-show location modal on file upload, clickable location badge with hover, installation year in results |
-| 56 | Documentation & hour tracking (v5) | 3 | Aug 10 | AGENTS.md, HOURS.md 178h→312h, WORK_PROGRESS.md update |
+| 56 | Documentation (v5) | 2 | Aug 10 | AGENTS.md §8, WORK_PROGRESS.md update |
+| 56b | Hours & progress tracking | 1 | Aug 10 | HOURS.md 178h→312h, cumulative totals |
 | 57 | Multi-image upload support | 10 | Aug 11 | Backend: multiple file endpoint, per-image OCR, best-confidence merge. Frontend: gallery UI, multi-File FormData, per-image results toggle |
 | 58 | User guidance diagram (Typenschild-Guide) | 8 | Aug 11 | SVG nameplate diagram with 7 annotated fields + color legend + tip list, guide modal, DE/EN i18n |
 | 59 | Final wrap-up & QA | 6 | Aug 12 | Guide i18n polish, per-image results display, end-to-end regression pass, README touch-ups |
@@ -97,15 +101,15 @@
 | Matching & Search | 19 | 5% |
 | API & Auth | 12 | 3% |
 | Database & Models | 6 | 2% |
-| EPREL Crawler | 49 | 13% |
-| Testing | 31 | 8% |
+| EPREL Crawler | 53 | 13% |
+| Testing | 34 | 8% |
 | Infrastructure (Docker, PostgreSQL) | 16 | 4% |
 | Frontend | 27 | 7% |
 | Bug Fixes | 5 | 1% |
-| Architecture & Planning | 19 | 5% |
+| Architecture & Planning | 22 | 5% |
 | Data Validation & Quality | 10 | 3% |
 | Dataset & Feasibility | 14 | 4% |
-| Documentation | 46 | 12% |
+| Documentation | 36 | 9% |
 | Category-specific Edge Cases | 14 | 4% |
 | CORS & Connectivity | 3 | 1% |
 | Backend Filter API | 4 | 1% |
