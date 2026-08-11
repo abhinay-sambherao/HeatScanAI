@@ -83,6 +83,19 @@ class TestExtractModel:
     def test_returns_none_for_no_model(self):
         assert extract_model("Just some random text") is None
 
+    def test_model_after_manufacturer(self):
+        assert extract_model("STIEBEL ELTRON WPL 18") == "WPL 18"
+
+    def test_model_after_manufacturer_report(self):
+        text = "ELCO, Thision S Plus 13.1 Brennstoff Brennerart"
+        assert extract_model(text) == "Thision S Plus 13.1"
+
+    def test_ignores_legal_form_suffix(self):
+        assert extract_model("Vaillant GmbH & Co. KG ecoTEC") is None
+
+    def test_ignores_headerless_brand_only(self):
+        assert extract_model("ELCO Thision") is None
+
 
 class TestExtractEnergyClass:
     def test_finds_class_a(self):
@@ -126,3 +139,14 @@ class TestExtractFields:
         assert fields["manufacturer"] == "Viessmann"
         assert fields["energy_class"] == "A"
         assert fields["fuel_type"] == "gas"
+
+    def test_full_extraction_inspection_report(self):
+        text = (
+            "Hersteller, Typ. Herstell-Nr., Errichtung 14,4 kW "
+            "ELCO, Thision S Plus 13.1 Brennstoff Brennerart Erdgas"
+        )
+        fields = extract_fields(text)
+        assert fields["manufacturer"] == "ELCO"
+        assert fields["model"] == "Thision S Plus 13.1"
+        assert fields["fuel_type"] == "gas"
+        assert fields["heat_output"] == "14,4 kW"

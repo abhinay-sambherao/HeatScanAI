@@ -79,6 +79,22 @@ MODEL_PATTERNS = [
 
 MODEL_GENERIC = re.compile(r"\b([A-Z]{1,3}[\s\-]?\d{2,5}[A-Za-z]?(?:[\s\-]\d{2,4}[A-Za-z]?)?)\b")
 
+# Tokens that end a manufacturer-anchored model phrase (German field headers,
+# legal forms, common connectors). Models are typically Title/ALL-CAPS token
+# runs ending in digits, so these delimiters keep the phrase tight.
+_MODEL_STOPWORDS = {
+    "brennstoff", "brenner", "brennerart", "leistung", "leistungsbereich",
+    "nennwärmeleistung", "nennwärme", "art", "kategorie", "gas", "gasversorgung",
+    "typ", "serial", "s/n", "s/n:", "nr", "nr.", "hersteller", "model", "modell",
+    "type", "energy", "effizienz", "effizienzklasse", "warmetauscher", "heizung",
+    "feverstätte", "feverstattenart", "befeuerung", "messergebnis", "abgas",
+    "abgasleitung", "verbrennungsluft", "lufttemperatur", "druckdifferenz",
+    "abgasklappe", "flammenbild", "verbindungsstück", "max", "min",
+    "gmbh", "ag", "co", "ltd", "llc", "group", "werke", "sa", "inc", "kg",
+    "und", "&", "mit", "bei", "der", "die", "das", "eine", "ein", "nicht",
+    "für", "fur", "an", "auf", "zu", "im", "am", "des", "den",
+}
+
 FUEL_KEYWORDS = {
     "gas": ["gas", "erdgas", "natural gas", "methane", "butane", "propane", "lpg"],
     "oil": ["oil", "öl", "heating oil", "heizöl", "diesel"],
@@ -113,6 +129,37 @@ def extract_manufacturer(text: str) -> str | None:
     return None
 
 
+def _extract_model_after_manufacturer(text: str, manufacturer: str | None) -> str | None:
+    """Extract the model phrase that follows the detected manufacturer name.
+
+    Handles nameplates/inspection reports that list the brand and model
+    together ("ELCO, Thision S Plus 13.1") and short models the generic
+    pattern deliberately filters ("STIEBEL ELTRON WPL 18"). Stops at known
+    field headers and legal forms; requires a digit + uppercase letter so
+    it never returns bare company suffixes ("GmbH & Co.").
+    """
+    if not manufacturer:
+        return None
+    idx = text.lower().find(manufacturer.lower())
+    if idx == -1:
+        return None
+    idx += len(manufacturer)
+    seg = re.sub(r"^[\s,.:;|/\-]+", "", text[idx : idx + 100])
+    parts = []
+    for tok in re.findall(r"[A-Za-z0-9][A-Za-z0-9.\-]*", seg):
+        if tok.lower().strip(".-") in _MODEL_STOPWORDS:
+            break
+        parts.append(tok)
+    phrase = " ".join(parts).strip()
+    if len(phrase) < 3 or len(phrase) > 40:
+        return None
+    if not re.search(r"\d", phrase):
+        return None
+    if not re.search(r"[A-Z]", phrase):
+        return None
+    return phrase
+
+
 def extract_model(text: str) -> str | None:
     """Extract the most likely model number from OCR text."""
     # First pass: explicit model labels
@@ -123,7 +170,13 @@ def extract_model(text: str) -> str | None:
             if len(candidate) >= 3 and len(candidate) <= 40:
                 return candidate
 
-    # Second pass: collect all generic model-like candidates, pick best
+    # Second pass: the model often directly follows the manufacturer name
+    manufacturer = extract_manufacturer(text)
+    anchored = _extract_model_after_manufacturer(text, manufacturer)
+    if anchored:
+        return anchored
+
+    # Third pass: collect all generic model-like candidates, pick best
     candidates = []
     for m in MODEL_GENERIC.finditer(text):
         val = m.group(1).strip()
