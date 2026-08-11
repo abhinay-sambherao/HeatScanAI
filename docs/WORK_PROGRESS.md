@@ -299,7 +299,7 @@ Based on the 285-hour estimate submitted to EVH.
 
 ## All Milestones Complete ✓
 
-All 21 milestones totaling 285 estimated hours have been completed. Actual hours spent: **393h** (138% of estimate), reflecting new feature additions (multi-image upload, user guidance diagram) and hardening work (data completion, cleanup, matching gate, test-suite fixes, daily scheduler, nameplate dataset insights, Paddle crash isolation) on top of the original scope. The 108-hour overrun was driven by:
+All 21 milestones totaling 285 estimated hours have been completed. Actual hours spent: **402h** (141% of estimate), reflecting new feature additions (multi-image upload, user guidance diagram) and hardening work (data completion, cleanup, matching gate, test-suite fixes, daily scheduler, nameplate dataset insights, Paddle crash isolation, mobile deployment, live-scan bug fixes) on top of the original scope. The 117-hour overrun was driven by:
 
 - **EPREL API reverse engineering** (14h) — undocumented JSON API required overnight research
 - **Frontend scope expansion** (35h vs 8h estimated) — camera capture, location metadata, i18n, GDPR, DB browser
@@ -330,3 +330,25 @@ All 7 pending items from the client meeting are documented in `docs/PENDING_ITEM
 - **Dataset analysis** — `docs/Kopie von Testdata_images_checked.xlsx - Tabelle1.csv` (14 nameplate cases): 7 brands, ~1 clean EPREL hit; pre-2014 units legally absent from EPREL. Implemented: 4 missing manufacturers (ÖkoFEN, Ochsner, ELCO, Sieger) + aliases, `strom`/`heizstrom` fuel keywords, and a **kW-range gate** in `search_and_add_product` (band = `max(2 kW, 25%)` of detected heat output).
 - **Scraper configs** — `ökofen` (oekofen.com), `ochsner` (ochsner.com), `elco` (elco.net). Sieger skipped: brand discontinued, former domains parked/redirect to Bosch.
 - **PaddlePaddle 3.3.1 crash isolation** — three identical macOS crash reports (`paddle::ThreadPoolTempl::WorkerLoop` SIGSEGV, even idle) took down the API server. OCR moved to a persistent **subprocess** (`app/ocr/ocr_worker.py` + rewritten `reader.py`, single-threaded Paddle, `OCR_PROTO_FD` channel); fixed a `select`/buffered-reader deadlock and the paddle ≥3.0 `set_num_threads` move. Verified live: worker respawns after `SIGKILL`, parent survives. Full suite **97 passed**.
+
+### Mobile deployment & UI responsiveness (Aug 12)
+
+Frontend live on **Netlify** (custom domain `heatscan.abhiinayy.in`); backend stays on the dev Mac and is exposed to the phone over a free HTTPS tunnel. Walkthrough of the issues hit and fixes:
+
+- **Tunnel choice** — started with `localhost.run` (SSH reverse tunnel), but it proved unreliable for the demo: `503` throttling under repeated requests, dropped connections, and intermittent `Permission denied (publickey)`. Switched to a **Cloudflare quick tunnel** (`cloudflared tunnel --url http://127.0.0.1:8000`) — stable, no throttling, free, no account. URL pattern `https://<random>.trycloudflare.com` (also random per restart; frontend snippet must be updated on restart).
+- **CORS for the custom domain** — the browser silently dropped every API response because `heatscan.abhiinayy.in` wasn't in the allowlist; the app showed "Disconnected" and empty Products/Dashboard tabs. Added `ALLOWED_ORIGINS_REGEX` (`config.py`, wired in `main.py`) covering `*.netlify.app`, `*.abhiinayy.in`, `*.lhr.life`, `*.trycloudflare.com`. Verified the `Access-Control-Allow-Origin` header end-to-end.
+- **Configurable API URL** — `js/app.js` reads `window.__API__` (set inline in `index.html`), falling back to `http://127.0.0.1:8000` for local dev.
+- **Mobile responsiveness** — Products-tab search bar overflowed the 390px viewport (Reset button hung ~92px past the edge), triggering iOS "shrink-to-fit" so the whole page rendered zoomed-out/cut-off. Fixed by stacking the search bar (input full-width, buttons below). Rebuilt the nav as a clean **two-row mobile layout** (row 1: brand + language/status; row 2: three equal-width tabs) with proper 16px padding. Verified programmatically via headless Chrome: zero horizontal overflow on all three tabs at 390×844.
+- **Health-check retry** — init now retries `/health` 3× before showing "Disconnected" so a transient tunnel hiccup doesn't lock the status red.
+- **Verified** — full OCR scan through the tunnel returned `STIEBEL ELTRON WPL 18` @ 98.58% with EPREL matches; backend CORS preflight + POST from a Netlify origin succeed.
+
+### Live-scan bug fixes from mobile field test (Aug 12)
+
+The first real phone scan (photo of an ELCO inspection record, not a clean nameplate) surfaced two issues:
+
+- **Bug: model in raw OCR never extracted** — the result showed "Model: Not detected" although `ELCO, Thision S Plus 13.1` sat plainly in the raw text.
+  - *Root cause:* `extract_model()` only handled explicit labels (`Typ:`/`Model:`) and a generic uppercase-code pattern (`[A-Z]{1,3}-digits`) that deliberately filters <3-digit codes (the DE65-postcode fix). Models that directly follow the brand name — and short ones like `WPL 18` — fell through.
+  - *Fix:* new manufacturer-anchored pass `_extract_model_after_manufacturer()` (parser.py) — finds the detected brand in the text, reads the following token run, and stops at German field headers (`Brennstoff`, `Brennerart`, `Nennwärmeleistung`, …), legal forms (`GmbH`, `& Co.`), and common connectors. Requires ≥1 digit + uppercase so it never returns bare suffixes. Now yields `Thision S Plus 13.1`, `STIEBEL ELTRON WPL 18 → WPL 18`; `Vaillant GmbH & Co. KG ecoTEC` still correctly → None.
+- **Bug: fuel/energy/output not shown** — the parser *was* detecting `Erdgas → gas`, class `C`, `14,4 kW`, but the results summary grid only rendered manufacturer/model/confidence.
+  - *Fix:* `renderResults()` now renders **Energieeffizienzklasse, Brennstoff, Heizleistung** in the summary fields-grid (translations already existed).
+- **Verified** — parser output for the exact phone scan now: ELCO / `Thision S Plus 13.1` / C / `14,4 kW` / gas. Full suite **102 passed** (+5 model-extraction tests).

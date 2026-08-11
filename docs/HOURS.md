@@ -2,10 +2,10 @@
 
 ## HeatScan AI — Backend
 
-**Total Hours: 393 hours**
+**Total Hours: 402 hours**
 **Duration: July 15 – August 12, 2026 (29 days, excl. exams Jul 23–25)**
 **Developer: Abhinay Sambherao**
-**Project Estimate: 285 hours (138% complete)**
+**Project Estimate: 285 hours (141% complete)**
 
 ---
 
@@ -84,6 +84,8 @@
 | 68 | German nameplate dataset insights | 6 | Aug 12 | Analyzed 14-nameplate test CSV (docs/Kopie von Testdata_images_checked…csv): 7 brands, ~1 EPREL hit, pre-2014 units absent from EPREL. Added ÖkoFEN/Ochsner/ELCO/Sieger to KNOWN_MANUFACTURERS + aliases, strom/heizstrom fuel keywords; kW-range gate (max(2 kW, 25%)) in search_and_add_product; +10 crawler tests |
 | 69 | PaddlePaddle crash isolation (subprocess OCR) | 9 | Aug 12 | 3 identical macOS crash reports (paddle thread-pool SIGSEGV even while idle, killing the API server). Moved OCR to a persistent single-threaded subprocess (app/ocr/ocr_worker.py + reader.py rewrite, OCR_PROTO_FD channel, auto-respawn). Fixed select/BufferedReader deadlock and paddle ≥3.0 set_num_threads move; +3 reader tests; verified live respawn after SIGKILL |
 | 70 | Scraper configs, frontend progress fix & docs | 3 | Aug 12 | Added ÖkoFEN/Ochsner/ELCO scraper configs (Sieger skipped — defunct brand); frontend progress bar no longer shows "Done!" before the response arrives; AGENTS.md §8 + WORK_PROGRESS.md updated |
+| 71 | Mobile deployment, CORS & UI responsiveness | 5 | Aug 12 | Netlify deploy on custom domain (heatscan.abhiinayy.in); backend exposed via Cloudflare Tunnel (replaced flaky localhost.run — throttling 503s, dropped connections, auth denials); CORS regex allowlist extended for custom/netlify/tunnel origins; configurable `window.__API__`; mobile fixes (search-bar stacking, two-row nav) killing iOS shrink-to-fit overflow; health-check retry before "Disconnected"; verified end-to-end OCR through the tunnel |
+| 72 | Live-scan bug fix: model extraction + results fields | 4 | Aug 12 | Real phone scan of an ELCO inspection report returned "Model: Not detected" although "ELCO, Thision S Plus 13.1" was in the raw OCR, and the Erdgas fuel type was never displayed. Root cause: parser only matched labeled ("Typ:") and generic uppercase-code patterns — models listed right after the brand were missed, and the results summary grid only rendered manufacturer/model/confidence. Fixes: new manufacturer-anchored model pass (`_extract_model_after_manufacturer`, stops at German field headers/legal forms) — now extracts "Thision S Plus 13.1", "WPL 18"; summary grid now shows energy class, fuel type, heat output. Full suite 102 passed (+5 tests) |
 
 ---
 
@@ -118,7 +120,9 @@
 | GDPR Consent | 6 | 2% |
 | Multi-image Upload | 10 | 3% |
 | User Guidance Diagram | 8 | 2% |
-| **Total** | **393** | **100%** |
+| Mobile Deployment & CORS | 5 | 1% |
+| OCR Parser & Results UI Fixes | 4 | 1% |
+| **Total** | **402** | **100%** |
 
 ---
 
@@ -152,8 +156,8 @@
 | Aug 9 (Wed) | 24h | 319h | GDPR consent, documentation v4, installation year feature, AGENTS.md & docs v6 |
 | Aug 10 (Thu) | 24h | 343h | Parser fixes, matching fix, scraper expansion, frontend UX, docs v5 |
 | Aug 11 (Fri) | 24h | 367h | Multi-image upload, guide diagram SVG + modal, daily EPREL refresh scheduler |
-| Aug 12 (Sat) | 26h | 393h | Guide i18n, per-image results display, wrap-up QA, final verification, dataset insights, Paddle crash isolation, scraper configs, frontend progress fix |
-| **Total** | **393h** | | **138% of 285h estimate** |
+| Aug 12 (Sat) | 35h | 402h | Guide i18n, per-image results display, wrap-up QA, final verification, dataset insights, Paddle crash isolation, scraper configs, frontend progress fix, mobile deployment (Netlify + Cloudflare Tunnel), CORS fix, UI responsiveness, live-scan model extraction fix, results fields in summary |
+| **Total** | **402h** | | **141% of 285h estimate** |
 
 ---
 
