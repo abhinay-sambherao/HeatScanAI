@@ -175,6 +175,23 @@
 | Aug 13 (Thu) | 16h | 402h | Final wrap-up & QA, verification, daily scheduler, AGENTS/docs v6, hours & progress tracking |
 | **Total** | **402h** | | **141% of 285h estimate** |
 
+---
+
+## Scope Growth
+
+Compared with the original proposal, the implementation expanded to include:
+
+- Mobile camera capture
+- Multi-image OCR
+- German/English localization
+- GDPR consent flow
+- Daily EPREL refresh scheduler
+- Manufacturer website fallback scraping
+- Cloud deployment and mobile compatibility
+- Production hardening and regression testing
+
+These additions account for the increase from the original 285-hour estimate to 402 logged hours.
+
 ## Key Decisions & Trade-offs
 
 1. **SQLite for dev, PostgreSQL for prod** — SQLite for fast local iteration; Docker Compose provides PostgreSQL in production.
