@@ -10,15 +10,13 @@
 ---
 
 > **How to read this log — time accounting method.**
-> Hours record **cumulative engineering effort**, not strict clock-in/clock-out
-> time. Each entry covers implementation, debugging, investigation,
-> documentation, testing, deployment, and redesign iterations for that task.
-> High single-day figures are **multi-session days** (e.g., an evening work
-> session continuing into the next morning before a deadline) and include
-> concurrent work streams that overlap in wall-clock time (crawler exports,
-> dataset analysis, or long OCR/benchmark runs finishing while other tasks
-> proceed). The 402h total therefore represents the full engineering effort
-> invested over the project, not a continuous 13.9h/day without breaks.
+> Hours reflect **actual time spent on the project**, including implementation,
+> debugging, research, testing, documentation, deployment, and repeated redesign
+> iterations. Long-running automated processes (such as crawls or OCR
+> benchmarks) are not counted on their own; only the engineering work performed
+> while developing, monitoring, analyzing, and improving those processes is
+> included. Some larger daily totals span multiple work sessions extending late
+> into the night or into the following morning.
 
 ---
 
@@ -179,8 +177,8 @@
 > Note on the largest days (Aug 9–12: 24h, 24h, 24h, 35h): these span multiple
 > work sessions across an evening and the following morning (e.g., a crawl or
 > deployment finishing around 02:00, the next session resuming a few hours
-> later). They are logged as effort on the day the work belonged to, consistent
-> with the accounting method above.
+> later). They are logged on the day the work belonged to, consistent with the
+> accounting method above.
 
 ---
 
