@@ -79,6 +79,9 @@ async def upload_and_analyze(
                 confidence=result["confidence"],
                 manufacturer=result["manufacturer"],
                 model=result["model"],
+                energy_class=result.get("energy_class"),
+                fuel_type=result.get("fuel_type"),
+                heat_output=result.get("heat_output"),
                 raw_text=result["raw_text"],
             )
         ]
@@ -139,6 +142,9 @@ async def upload_and_analyze(
         ocr_result_id=result["ocr_result_id"],
         manufacturer=result["manufacturer"],
         model=result["model"],
+        energy_class=result.get("energy_class"),
+        fuel_type=result.get("fuel_type"),
+        heat_output=result.get("heat_output"),
         confidence=result["confidence"],
         raw_text=result["raw_text"],
         cleaned_text=result["cleaned_text"],

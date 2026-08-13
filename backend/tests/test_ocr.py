@@ -1,5 +1,7 @@
 """Tests for the OCR text parser."""
 
+import pytest
+
 from app.ocr.parser import (
     clean_text,
     extract_manufacturer,
@@ -9,6 +11,7 @@ from app.ocr.parser import (
     extract_fuel_type,
     extract_fields,
 )
+from app.services.ocr_service import _persist_and_match
 
 
 class TestCleanText:
@@ -150,3 +153,25 @@ class TestExtractFields:
         assert fields["model"] == "Thision S Plus 13.1"
         assert fields["fuel_type"] == "gas"
         assert fields["heat_output"] == "14,4 kW"
+
+
+class TestPersistAndMatchReturnsExtractedFields:
+    """Extracted fields must survive the service → API response (UI depends on them)."""
+
+    @pytest.mark.asyncio
+    async def test_response_contains_energy_fuel_output(self, db_session):
+        merged = {
+            "raw_text": "ELCO, Thision S Plus 13.1 Erdgas",
+            "cleaned_text": "ELCO Thision S Plus 13.1 Erdgas",
+            "confidence": 92.0,
+            "manufacturer": "ELCO",
+            "model": "Thision S Plus 13.1",
+            "energy_class": "A",
+            "fuel_type": "gas",
+            "heat_output": "14,4 kW",
+            "per_image": [],
+        }
+        result = await _persist_and_match(db=db_session, merged=merged)
+        assert result["energy_class"] == "A"
+        assert result["fuel_type"] == "gas"
+        assert result["heat_output"] == "14,4 kW"

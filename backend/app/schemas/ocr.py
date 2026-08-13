@@ -41,6 +41,9 @@ class OCRResponse(BaseModel):
     ocr_result_id: uuid.UUID
     manufacturer: Optional[str] = None
     model: Optional[str] = None
+    energy_class: Optional[str] = None
+    fuel_type: Optional[str] = None
+    heat_output: Optional[str] = None
     confidence: float = Field(ge=0, le=100)
     raw_text: str
     cleaned_text: str
