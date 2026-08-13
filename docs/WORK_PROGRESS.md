@@ -299,7 +299,7 @@ Based on the 285-hour estimate submitted to EVH.
 
 ## All Milestones Complete ✓
 
-All 21 milestones totaling 285 estimated hours have been completed. Actual hours spent: **402h** (141% of estimate), reflecting new feature additions (multi-image upload, user guidance diagram) and hardening work (data completion, cleanup, matching gate, test-suite fixes, daily scheduler, nameplate dataset insights, Paddle crash isolation, mobile deployment, live-scan bug fixes) on top of the original scope. The 117-hour overrun was driven by:
+All 21 milestones totaling 285 estimated hours have been completed. Actual hours spent: **402h** (141% of estimate), reflecting new feature additions (multi-image upload, user guidance diagram) and hardening work (data completion, cleanup, matching gate, test-suite fixes, daily scheduler, nameplate dataset insights, Paddle crash isolation, mobile deployment, live-scan bug fixes) on top of the original scope. Hours are logged as **cumulative engineering effort** (implementation, debugging, investigation, documentation, testing, deployment, redesigns) rather than strict clock time — see the "time accounting method" note in HOURS.md. The 117-hour overrun was driven by:
 
 - **EPREL API reverse engineering** (14h) — undocumented JSON API required overnight research
 - **Frontend scope expansion** (35h vs 8h estimated) — camera capture, location metadata, i18n, GDPR, DB browser

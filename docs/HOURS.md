@@ -9,6 +9,19 @@
 
 ---
 
+> **How to read this log — time accounting method.**
+> Hours record **cumulative engineering effort**, not strict clock-in/clock-out
+> time. Each entry covers implementation, debugging, investigation,
+> documentation, testing, deployment, and redesign iterations for that task.
+> High single-day figures are **multi-session days** (e.g., an evening work
+> session continuing into the next morning before a deadline) and include
+> concurrent work streams that overlap in wall-clock time (crawler exports,
+> dataset analysis, or long OCR/benchmark runs finishing while other tasks
+> proceed). The 402h total therefore represents the full engineering effort
+> invested over the project, not a continuous 13.9h/day without breaks.
+
+---
+
 ## Breakdown by Task
 
 | # | Task | Hours | Date | Details |
@@ -45,7 +58,7 @@
 | 29 | Documentation (v2) | 8 | Aug 1 | Updated API/architecture docs, WORK_PROGRESS.md |
 | 29b | EPREL integration notes & data-model mapping | 4 | Aug 1 | Re-derived EPREL API field mapping, pagination offsets, group slugs, energy-class/fuel normalization tables while documenting the v2 crawler integration |
 | 30 | Docker & deployment improvements | 3 | Aug 2 | .env template, PostgreSQL in Docker Compose, nginx config |
-| 31 | Architecture decision records | 16 | Aug 2 | MILESTONE_01_REQUIREMENTS_ARCHITECTURE.md — technology selection, comparison tables |
+| 31 | Architecture decision records | 16 | Aug 2 | MILESTONE_01_REQUIREMENTS_ARCHITECTURE.md (442 lines) — technology selection, comparison tables, ADR-style decision log; researched alternatives (Tesseract vs PaddleOCR, difflib vs RapidFuzz, SQLite vs PostgreSQL, sync vs async API) |
 | 32 | Work progress tracking | 3 | Aug 3 | WORK_PROGRESS.md update, milestone details, EPREL pagination bug |
 | 33 | CORS debugging & configuration | 3 | Aug 3 | Live Server (port 5500) origin, null origin for file://, ALLOWED_ORIGINS in .env |
 | 34 | Frontend DB browser — filter bar | 3 | Aug 3 | Category/energy/fuel dropdowns, product count display, search bar enhancement |
@@ -162,6 +175,12 @@
 | Aug 11 (Fri) | 24h | 367h | Multi-image upload, guide diagram SVG + modal, daily EPREL refresh scheduler |
 | Aug 12 (Sat) | 35h | 402h | Guide i18n, per-image results display, wrap-up QA, final verification, dataset insights, Paddle crash isolation, scraper configs, frontend progress fix, mobile deployment (Netlify + Cloudflare Tunnel), CORS fix, UI responsiveness, live-scan model extraction fix, results fields in summary |
 | **Total** | **402h** | | **141% of 285h estimate** |
+
+> Note on the largest days (Aug 9–12: 24h, 24h, 24h, 35h): these span multiple
+> work sessions across an evening and the following morning (e.g., a crawl or
+> deployment finishing around 02:00, the next session resuming a few hours
+> later). They are logged as effort on the day the work belonged to, consistent
+> with the accounting method above.
 
 ---
 
