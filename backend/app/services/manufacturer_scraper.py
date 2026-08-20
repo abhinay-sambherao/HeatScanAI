@@ -436,14 +436,14 @@ async def search_and_add_from_manufacturer(
     ).where(
         Manufacturer.name.ilike(f"%{manufacturer}%"),
         Product.model.ilike(f"%{model}%"),
-    )
-    existing = (await db.execute(existing_stmt)).scalar_one_or_none()
+    ).limit(1)
+    existing = (await db.execute(existing_stmt)).scalars().first()
     if existing:
         return []
 
     # Resolve manufacturer
-    mfr_stmt = select(Manufacturer).where(Manufacturer.name.ilike(f"%{manufacturer}%"))
-    mfr = (await db.execute(mfr_stmt)).scalar_one_or_none()
+    mfr_stmt = select(Manufacturer).where(Manufacturer.name.ilike(f"%{manufacturer}%")).limit(1)
+    mfr = (await db.execute(mfr_stmt)).scalars().first()
     if not mfr:
         mfr = Manufacturer(id=uuid.uuid4(), name=manufacturer)
         db.add(mfr)
