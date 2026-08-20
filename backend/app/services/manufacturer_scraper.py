@@ -49,14 +49,8 @@ MANUFACTURER_SITES: dict[str, dict[str, Any]] = {
         "product_link_selector": "a[href*='/product/'], a[href*='/produkt/']",
         "name_selector": "h1, .product-headline",
     },
-    "buderus": {
-        "search_url": "https://www.buderus.com/de/search/?q={model}",
-        "base_url": "https://www.buderus.com",
-        "product_link_selector": "a[href*='/produkte/'], a[href*='/product/']",
-        "name_selector": "h1, .product-title",
-    },
     "wolf": {
-        "search_url": "https://www.wolf.eu/de-de/search?q={model}",
+        "search_url": "https://www.wolf.eu/de-de/suche?q={model}",
         "base_url": "https://www.wolf.eu",
         "product_link_selector": "a[href*='/produkte/']",
         "name_selector": "h1, .product-title",
@@ -80,15 +74,9 @@ MANUFACTURER_SITES: dict[str, dict[str, Any]] = {
         "name_selector": "h1, .product-title",
     },
     "stiebel eltron": {
-        "search_url": "https://www.stiebel-eltron.de/de/produkte/suche.html?q={model}",
+        "search_url": "https://www.stiebel-eltron.de/de/produkte/?q={model}",
         "base_url": "https://www.stiebel-eltron.de",
         "product_link_selector": "a[href*='/produkte/']",
-        "name_selector": "h1, .product-title",
-    },
-    "nibe": {
-        "search_url": "https://www.nibe.de/de/produkte/?q={model}",
-        "base_url": "https://www.nibe.de",
-        "product_link_selector": "a[href*='/produkte/'], a[href*='/product/']",
         "name_selector": "h1, .product-title",
     },
     "panasonic": {
@@ -97,20 +85,14 @@ MANUFACTURER_SITES: dict[str, dict[str, Any]] = {
         "product_link_selector": "a[href*='/heizung/']",
         "name_selector": "h1, .product-title, .pane-title",
     },
-    "riello": {
-        "search_url": "https://www.riello.com/de/produkte/?q={model}",
-        "base_url": "https://www.riello.com",
-        "product_link_selector": "a[href*='/produkte/']",
-        "name_selector": "h1, .product-title",
-    },
     "weishaupt": {
-        "search_url": "https://www.weishaupt.de/de/produkte/?q={model}",
+        "search_url": "https://www.weishaupt.de/produkte?q={model}",
         "base_url": "https://www.weishaupt.de",
         "product_link_selector": "a[href*='/produkte/'], a[href*='/product/']",
         "name_selector": "h1, .product-title",
     },
     "ferroli": {
-        "search_url": "https://www.ferroli.com/de/produkte?q={model}",
+        "search_url": "https://www.ferroli.com/en/produkte?q={model}",
         "base_url": "https://www.ferroli.com",
         "product_link_selector": "a[href*='/produkte/'], a[href*='/product/']",
         "name_selector": "h1, .product-title",
@@ -128,14 +110,14 @@ MANUFACTURER_SITES: dict[str, dict[str, Any]] = {
         "name_selector": "h1, .product-title",
     },
     "glow-worm": {
-        "search_url": "https://www.glow-worm.co.uk/search?q={model}",
+        "search_url": "https://www.glow-worm.co.uk/products?q={model}",
         "base_url": "https://www.glow-worm.co.uk",
         "product_link_selector": "a[href*='/products/']",
         "name_selector": "h1, .product-title",
     },
     "ideal": {
-        "search_url": "https://www.idealboilers.com/search?q={model}",
-        "base_url": "https://www.idealboilers.com",
+        "search_url": "https://www.idealheating.com/search?q={model}",
+        "base_url": "https://www.idealheating.com",
         "product_link_selector": "a[href*='/products/']",
         "name_selector": "h1, .product-title",
     },
@@ -158,7 +140,7 @@ MANUFACTURER_SITES: dict[str, dict[str, Any]] = {
         "name_selector": "h1, .product-title",
     },
     "junkers": {
-        "search_url": "https://www.junkers.de/produkte/?q={model}",
+        "search_url": "https://www.junkers.de/search?q={model}",
         "base_url": "https://www.junkers.de",
         "product_link_selector": "a[href*='/produkte/'], a[href*='/product/']",
         "name_selector": "h1, .product-title",
@@ -170,7 +152,7 @@ MANUFACTURER_SITES: dict[str, dict[str, Any]] = {
         "name_selector": "h1, .product-title",
     },
     "lg": {
-        "search_url": "https://www.lg.com/de/suche/?q={model}",
+        "search_url": "https://www.lg.com/de/search?q={model}",
         "base_url": "https://www.lg.com",
         "product_link_selector": "a[href*='/heizung/'], a[href*='/product/']",
         "name_selector": "h1, .product-title",
@@ -194,7 +176,7 @@ MANUFACTURER_SITES: dict[str, dict[str, Any]] = {
         "name_selector": "h1, .product-title",
     },
     "awb": {
-        "search_url": "https://www.awb.nl/zoeken/?q={model}",
+        "search_url": "https://www.awb.nl/producten?q={model}",
         "base_url": "https://www.awb.nl",
         "product_link_selector": "a[href*='/producten/'], a[href*='/product/']",
         "name_selector": "h1, .product-title",
@@ -212,15 +194,9 @@ MANUFACTURER_SITES: dict[str, dict[str, Any]] = {
         "name_selector": "h1, .product-title",
     },
     "viadrus": {
-        "search_url": "https://www.viadrus.cz/vyrobky/?q={model}",
+        "search_url": "https://www.viadrus.cz/?s={model}",
         "base_url": "https://www.viadrus.cz",
         "product_link_selector": "a[href*='/vyrobky/'], a[href*='/product/']",
-        "name_selector": "h1, .product-title",
-    },
-    "chaffoteaux": {
-        "search_url": "https://www.chaffoteaux.com/de-de/search?q={model}",
-        "base_url": "https://www.chaffoteaux.com",
-        "product_link_selector": "a[href*='/produkte/'], a[href*='/product/']",
         "name_selector": "h1, .product-title",
     },
     "de dietrich": {
@@ -230,14 +206,14 @@ MANUFACTURER_SITES: dict[str, dict[str, Any]] = {
         "name_selector": "h1, .product-title",
     },
     "saunier duval": {
-        "search_url": "https://www.saunierduval.de/produkte/?q={model}",
-        "base_url": "https://www.saunierduval.de",
+        "search_url": "https://www.saunierduval.com/search/?q={model}",
+        "base_url": "https://www.saunierduval.com",
         "product_link_selector": "a[href*='/produkte/'], a[href*='/product/']",
         "name_selector": "h1, .product-title",
     },
     "atmos": {
-        "search_url": "https://www.atmos.cz/vyrobky/?q={model}",
-        "base_url": "https://www.atmos.cz",
+        "search_url": "https://www.atmos.eu/?s={model}",
+        "base_url": "https://www.atmos.eu",
         "product_link_selector": "a[href*='/vyrobky/'], a[href*='/product/']",
         "name_selector": "h1, .product-title",
     },
@@ -248,13 +224,13 @@ MANUFACTURER_SITES: dict[str, dict[str, Any]] = {
         "name_selector": "h1, .product-title",
     },
     "clage": {
-        "search_url": "https://www.clage.de/suche?q={model}",
-        "base_url": "https://www.clage.de",
+        "search_url": "https://www.clage.com/de/produkte?q={model}",
+        "base_url": "https://www.clage.com",
         "product_link_selector": "a[href*='/produkte/'], a[href*='/product/']",
         "name_selector": "h1, .product-title",
     },
     "truma": {
-        "search_url": "https://www.truma.com/de/search?q={model}",
+        "search_url": "https://www.truma.com/de/produkte?q={model}",
         "base_url": "https://www.truma.com",
         "product_link_selector": "a[href*='/produkte/'], a[href*='/product/']",
         "name_selector": "h1, .product-title",

@@ -79,6 +79,7 @@ async def ocr_history(
                 "latitude": s.latitude,
                 "longitude": s.longitude,
                 "address": s.address,
+                "postal_code": s.postal_code,
                 "city": s.city,
                 "installation_year": s.installation_year,
                 "created_at": s.created_at.isoformat(),

@@ -1,0 +1,38 @@
+[
+  {
+    "name": "viessmann",
+    "base": "https://www.viessmann.de",
+    "base_code": "\u2705",
+    "base_desc": "200",
+    "search": "https://www.viessmann.de/de/suche.html?q=Vitodens",
+    "search_code": "\u2705",
+    "search_desc": "200",
+    "robots": "https://www.viessmann.de/robots.txt",
+    "robots_code": "\u2705",
+    "robots_desc": "200"
+  },
+  {
+    "name": "wolf",
+    "base": "https://www.wolf.eu",
+    "base_code": "\u2705",
+    "base_desc": "200",
+    "search": "https://www.wolf.eu/de-de/suche?q=Vitodens",
+    "search_code": "\u2705",
+    "search_desc": "200",
+    "robots": "https://www.wolf.eu/robots.txt",
+    "robots_code": "\u2705",
+    "robots_desc": "200"
+  },
+  {
+    "name": "samsung",
+    "base": "https://www.samsung.com",
+    "base_code": "\u2705",
+    "base_desc": "200",
+    "search": "https://www.samsung.com/de/search/?q=Vitodens",
+    "search_code": "\u2705",
+    "search_desc": "200",
+    "robots": "https://www.samsung.com/robots.txt",
+    "robots_code": "\u2705",
+    "robots_desc": "200"
+  }
+]

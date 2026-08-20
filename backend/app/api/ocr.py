@@ -35,6 +35,7 @@ async def upload_and_analyze(
     latitude: Optional[float] = Form(None),
     longitude: Optional[float] = Form(None),
     address: Optional[str] = Form(None),
+    postal_code: Optional[str] = Form(None),
     city: Optional[str] = Form(None),
     installation_year: Optional[int] = Form(None),
     db: AsyncSession = Depends(get_db),
@@ -67,6 +68,7 @@ async def upload_and_analyze(
                 latitude=latitude,
                 longitude=longitude,
                 address=address,
+                postal_code=postal_code,
                 city=city,
                 installation_year=installation_year,
             )
@@ -103,6 +105,7 @@ async def upload_and_analyze(
                 latitude=latitude,
                 longitude=longitude,
                 address=address,
+                postal_code=postal_code,
                 city=city,
                 installation_year=installation_year,
             )
@@ -153,6 +156,7 @@ async def upload_and_analyze(
         latitude=result.get("latitude"),
         longitude=result.get("longitude"),
         address=result.get("address"),
+        postal_code=result.get("postal_code"),
         city=result.get("city"),
         installation_year=result.get("installation_year"),
         created_at=result["created_at"],

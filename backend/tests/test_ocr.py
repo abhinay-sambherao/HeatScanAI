@@ -78,6 +78,15 @@ class TestExtractManufacturer:
         assert extract_manufacturer("Bosch Condens 5000") == "Bosch"
         assert extract_manufacturer("Junkers Cerapur 9000") == "Junkers"
 
+    def test_finds_okofen_by_product_line(self):
+        assert extract_manufacturer("Pellematic08") == "ÖkoFEN"
+
+    def test_finds_okofen_by_hq_address(self):
+        assert extract_manufacturer("Gewerbepark 1, A-4133 Niederkappel") == "ÖkoFEN"
+
+    def test_returns_none_without_brand_signals(self):
+        assert extract_manufacturer("Generic Heating Unit X500") is None
+
 
 class TestExtractModel:
     def test_extracts_model_prefix(self):
@@ -99,6 +108,33 @@ class TestExtractModel:
     def test_ignores_headerless_brand_only(self):
         assert extract_model("ELCO Thision") is None
 
+    def test_type_label_mid_line(self):
+        text = "Fax: DW 10 Type Pellematic08 Herstellernummer X12345"
+        assert extract_model(text) == "Pellematic08"
+
+    def test_type_label_with_period(self):
+        assert extract_model("Typ. Pellematic08") == "Pellematic08"
+
+    def test_heater_type_is_not_a_model(self):
+        assert extract_model("Heater type: Condensing 24 kW") is None
+
+    def test_typenschild_word_is_not_a_label(self):
+        assert extract_model("Typenschild ABC123") == "ABC123"
+
+    def test_mod_abbreviation_label_truncates_trailing_codes(self):
+        text = "Mod.: WTC-GB 90-A 0063 BS 3948 CE 0085 Max Weishaupt GmbH"
+        assert extract_model(text) == "WTC-GB 90-A"
+
+    def test_postal_code_is_not_a_model(self):
+        assert extract_model("Max Weishaupt GmbH D-88475 Schwendi") is None
+
+    def test_leading_zero_code_is_not_a_model(self):
+        assert extract_model("C13X L0330 C43X C53X") is None
+
+    def test_gas_category_codes_are_not_models(self):
+        text = "II2H3P G20 20 G31 37 C13(X) C33X -C43(X)C53(X) C83X C930"
+        assert extract_model(text) is None
+
 
 class TestExtractEnergyClass:
     def test_finds_class_a(self):
@@ -109,6 +145,15 @@ class TestExtractEnergyClass:
 
     def test_returns_none_when_missing(self):
         assert extract_energy_class("No energy info here") is None
+
+    def test_gas_category_letter_is_not_a_class(self):
+        assert extract_energy_class("II2H3P G20 20 G31 37/50 C13(X)") is None
+
+    def test_appliance_category_letter_is_not_a_class(self):
+        assert extract_energy_class("12E(R)B G20 20") is None
+
+    def test_postal_code_letter_is_not_a_class(self):
+        assert extract_energy_class("Gewerbepark 1, A-4133 Niederkappel") is None
 
 
 class TestExtractHeatOutput:
@@ -143,6 +188,18 @@ class TestExtractFields:
         assert fields["energy_class"] == "A"
         assert fields["fuel_type"] == "gas"
 
+    def test_okofen_nameplate_without_brand(self):
+        text = (
+            "Beispiel Typenschild Pelletkessel Gewerbepark 1, A-4133 Niederkappel "
+            "Tel.: 0043 7286 7450 Fax: DW 10 Type Pellematic08 Herstellernummer "
+            "X12345 Baujahr 2009 Nennwärmeleistung 8,2 KW zul. Brennstoff Holzpellets"
+        )
+        fields = extract_fields(text)
+        assert fields["manufacturer"] == "ÖkoFEN"
+        assert fields["model"] == "Pellematic08"
+        assert fields["fuel_type"] == "wood"
+        assert fields["heat_output"] == "8,2 kW"
+
     def test_full_extraction_inspection_report(self):
         text = (
             "Hersteller, Typ. Herstell-Nr., Errichtung 14,4 kW "
@@ -153,6 +210,32 @@ class TestExtractFields:
         assert fields["model"] == "Thision S Plus 13.1"
         assert fields["fuel_type"] == "gas"
         assert fields["heat_output"] == "14,4 kW"
+
+    def test_garbled_flue_table_yields_no_fields(self):
+        text = (
+            "II2ELL3P G20 20 G31 50 C13(X)-C33(X)-C43(X)C53(X)-C63(X) CB "
+            "II2H3P G20 20 G31 50 C13(X)C33(X) C43CX C53(X LC63X C83(X C930 "
+            "12E(R)B G20 20/25 G25 20/25 C13(X) C33X -C43(X)C53(X)-C83(X) C93X -B23 "
+            "II2H3P G20 20 G31 37 C13(X) C33XC430X 0C53(X)-C630 083XC9 "
+            "I12Esi3P G20 20/25 G31 37 C13(X)-C33(X)-C43X)C53(X0-C63X0-C83X)C980X "
+            "12L3P G25 25 G31 30/50 C13(X-C33XC43XC53XC63X0-C83X0C93X0B "
+            "II2H3P G20 20 G31 30/50 C13X L0330 C43X C53XCBXC3XC98XB"
+        )
+        fields = extract_fields(text)
+        assert fields["manufacturer"] is None
+        assert fields["model"] is None
+        assert fields["energy_class"] is None
+
+    def test_weishaupt_plate_mod_label(self):
+        text = (
+            "Gas-Brennwertkessel PYR-1000 ND Pyropac AG, CH-9466 Sennwald "
+            "Ser. Nr.: 9108992 14 Mod.: WTC-GB 90-A 0063 BS 3948 CE 0085 "
+            "-weishaupt- Max Weishaupt GmbH D-88475 Schwendi www.weishaupt.de"
+        )
+        fields = extract_fields(text)
+        assert fields["manufacturer"] == "Weishaupt"
+        assert fields["model"] == "WTC-GB 90-A"
+        assert fields["fuel_type"] == "gas"
 
 
 class TestPersistAndMatchReturnsExtractedFields:

@@ -68,6 +68,7 @@ async def process_upload(
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
     address: Optional[str] = None,
+    postal_code: Optional[str] = None,
     city: Optional[str] = None,
     installation_year: Optional[int] = None,
 ) -> dict:
@@ -81,10 +82,10 @@ async def process_upload(
         latitude=latitude,
         longitude=longitude,
         address=address,
+        postal_code=postal_code,
         city=city,
         installation_year=installation_year,
     )
-
 
 async def process_multiple_uploads(
     db: AsyncSession,
@@ -92,6 +93,7 @@ async def process_multiple_uploads(
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
     address: Optional[str] = None,
+    postal_code: Optional[str] = None,
     city: Optional[str] = None,
     installation_year: Optional[int] = None,
 ) -> dict:
@@ -114,6 +116,7 @@ async def process_multiple_uploads(
         latitude=latitude,
         longitude=longitude,
         address=address,
+        postal_code=postal_code,
         city=city,
         installation_year=installation_year,
     )
@@ -125,6 +128,7 @@ async def _persist_and_match(
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
     address: Optional[str] = None,
+    postal_code: Optional[str] = None,
     city: Optional[str] = None,
     installation_year: Optional[int] = None,
 ) -> dict:
@@ -140,6 +144,7 @@ async def _persist_and_match(
         latitude=latitude,
         longitude=longitude,
         address=address,
+        postal_code=postal_code,
         city=city,
         installation_year=installation_year,
     )
@@ -222,6 +227,7 @@ async def _persist_and_match(
         "latitude": ocr_result.latitude,
         "longitude": ocr_result.longitude,
         "address": ocr_result.address,
+        "postal_code": ocr_result.postal_code,
         "city": ocr_result.city,
         "installation_year": ocr_result.installation_year,
         "created_at": ocr_result.created_at,

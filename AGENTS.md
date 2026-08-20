@@ -1,5 +1,46 @@
 # Changes Summary
 
+## 9. ÖkoFEN Nameplate Detection (brand missing from nameplate)
+
+| File | Change |
+|---|---|
+| `app/ocr/parser.py` | `MANUFACTURER_ALIASES`: added `pellematic` → ÖkoFEN (its pellet-boiler product line) and `niederkappel` → ÖkoFEN (its registered HQ address, A-4133 Austria), so nameplates that never print the brand word are still attributed. `MODEL_PATTERNS`: mid-line `Type`/`Typ` now matches only when followed by a single digit-bearing token (e.g. `Fax: DW 10 Type Pellematic08` → `Pellematic08`, no longer falls through to the serial `X12345`). Guards (`(?<![A-Za-z])` / `(?![A-Za-z])`) keep `Typenschild`, `Modellnummer`, and `Heater type:` from matching. |
+| `tests/test_ocr.py` | +8 tests: ÖkoFEN by product line / HQ address, full ÖkoFEN nameplate extraction, mid-line `Type` + `Typ.` labels, `Heater type:` non-match, `Typenschild` non-label. |
+
+Verified: `Beispiel Typenschild Pelletkessel … Niederkappel … Type Pellematic08` →
+manufacturer **ÖkoFEN**, model **Pellematic08**, fuel `wood`, heat output `8,2 kW`.
+Full suite **111 passed**.
+
+## 10. Garbled Flue-Table OCR & Labeled-Model Hardening
+
+### Problem (from user scan)
+
+A `G20 20` scan result came back with `model: "G20 20"`, `energy_class: "G"`,
+manufacturer not detected. Root cause: the photo's OCR only captured the
+boiler's gas/flue-category table (`II2H3P G20 20 G31 37 C13(X)-C33(X)-C43X …`) —
+the actual nameplate was never read. `G20 20` is a gas-group code, `G` was a false
+energy class, and the generic model rule also grabbed garbage like `L0330`/`C930`.
+
+### Fixes
+
+| File | Change |
+|---|---|
+| `app/ocr/parser.py` | `ENERGY_CLASS_PATTERN`: class letter must not be followed by a digit (`G20`, `G31`) and not preceded by `)`/`]`/`-`/digit (stray category letters like `12E(R)B`); `A-4133` postal-code letters no longer match. `GAS_CODE_RE` (new): rejects `^[GBC]\d{2,3}(space/`-`/`/`+digits)` — covers `G20 20`, `G31 37/50`, `C930`, `C980X`, `B23`. `LEADING_ZERO_CODE_RE` (new): rejects `L0330`-style OCR garble of flue lines. `POSTAL_CODE_RE` (new): rejects `D-88475`/`CH-9466` address codes. Generic candidate filter also drops trailing leading-zero codes (`CE 0085`). `MODEL_PATTERNS`: added `Mod`/`Mod.` abbreviation; separator now accepts `.` (`Mod.: …`); `_clean_model_candidate()` (new) truncates the label value at leading-zero 4+ digit codes (`Mod.: WTC-GB 90-A 0063 BS 3948` → `WTC-GB 90-A`). |
+| `app/ocr/pipeline.py` | Reworked from "preprocessed only + <10-char fallback" to **multi-variant OCR**: always tries the preprocessed view (perspective crop + CLAHE + rotation), the unmodified resized original, and a 2x upscale (`upscale_for_ocr` in `preprocessor.py`) — the perspective crop is what silently lost nameplates to the gas/flue table. Results are line-merged (`_merge_ocr_results`, dedup, max confidence). **Fast path**: if the preprocessed view already parses to brand + model, the extra variants (and their latency) are skipped. |
+| `tests/test_ocr.py` | +9 tests: `Mod.` label with trailing codes, postal/leading-zero/gas-category non-models, energy `G20`/`12E(R)B`/`A-4133` non-classes, garbled flue table → all fields `None`, Weishaupt plate positive test. |
+| `tests/test_pipeline.py` | NEW. +5 tests: dedup/max-confidence merge, table-only-preprocessed recovers plate from upscaled variant, fast path = 1 variant, worker-crash isolation. |
+
+Verified:
+- Garbled table OCR → `{manufacturer: None, model: None, energy_class: None, …}`
+- Weishaupt plate `… Mod.: WTC-GB 90-A 0063 BS 3948 CE 0085 …` → manufacturer
+  **Weishaupt**, model **WTC-GB 90-A**, fuel `gas` (was `D-88475`, a postal code)
+- Simulated "preprocessed reads only table, upscale reads plate" → Weishaupt / WTC-GB 90-A / gas
+- Full suite **125 passed**.
+
+> **Deployment note:** the parser fixes are only live after the backend restarts
+> (`uvicorn app.main:app --reload` already reloads on file changes; without
+> `--reload`, kill and restart the server before re-scanning).
+
 ## 1. Installation Year Capture
 
 ### Backend (`HeatScanAI/backend/`)

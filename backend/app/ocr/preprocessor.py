@@ -24,6 +24,20 @@ def resize_for_ocr(img: np.ndarray, max_side: int = 1500) -> np.ndarray:
     return cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
 
+def upscale_for_ocr(img: np.ndarray, factor: float = 2.0, max_side: int = 3200) -> np.ndarray:
+    """Upscale small images so small nameplate text becomes readable.
+
+    PaddleOCR struggles with text under ~10px; a 2x upscale is a standard
+    remedy. The result is clamped to ``max_side`` to bound worker memory.
+    """
+    h, w = img.shape[:2]
+    nh, nw = int(h * factor), int(w * factor)
+    if max(nh, nw) > max_side:
+        scale = max_side / max(nh, nw)
+        nh, nw = int(nh * scale), int(nw * scale)
+    return cv2.resize(img, (nw, nh), interpolation=cv2.INTER_CUBIC)
+
+
 def correct_perspective(img: np.ndarray) -> np.ndarray:
     """Detect the largest rectangular contour and apply perspective transform.
     Only applies if a clear rectangle is found covering >30% of the image.

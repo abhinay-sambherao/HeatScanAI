@@ -57,27 +57,64 @@ MANUFACTURER_ALIASES = {
     "worcester": "Worcester",
     "ökofen": "ÖkoFEN",
     "oekofen": "ÖkoFEN",
+    # Brand often missing from nameplates; detect via distinctive signals:
+    # "Pellematic" is ÖkoFEN's pellet boiler product line, "Niederkappel"
+    # (A-4133, Austria) is ÖkoFEN Heizsysteme's registered HQ address.
+    "pellematic": "ÖkoFEN",
+    "niederkappel": "ÖkoFEN",
     "ochsner": "Ochsner",
     "elco": "ELCO",
     "sieger": "Sieger",
 }
 
-ENERGY_CLASS_PATTERN = re.compile(r"(?<![A-Za-z])(A\+{0,3}|[B-G])(?![A-Za-z+])", re.IGNORECASE)
+# Energy class letter must not be followed by a digit: boiler plates print
+# gas-category codes like "G20", "G31", "B23", "C13(X)" whose leading letter
+# would otherwise be read as a class ("G").
+ENERGY_CLASS_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9)\]\-])(A\+{0,3}|[B-G])(?![A-Za-z+0-9\-])", re.IGNORECASE
+)
 
 HEAT_OUTPUT_PATTERN = re.compile(
     r"(\d+(?:[.,]\d+)?)\s*(?:kW|kw|KW)", re.IGNORECASE
 )
 
 MODEL_PATTERNS = [
+    # Explicit labels at start of line / after punctuation, plus word-boundary
+    # Model/Modell anywhere. A trailing letter guard keeps "Typenschild",
+    # "Modellnummer", "Heater type:" from matching.
     re.compile(
-        r"(?:(?:^|[.\n\r])\s*(?:Model|Modell|Type|Typ)|(?<!\w)(?:Model|Modell))"
-        r"\s*[:\s]*([A-Za-z0-9][A-Za-z0-9\-\.\s]{1,50}?)"
+        r"(?:(?:^|[.\n\r])\s*(?:Model|Modell|Mod|Type|Typ)(?![A-Za-z])"
+        r"|(?<!\w)(?:Model|Modell|Mod)(?![A-Za-z]))"
+        r"\s*[:\s.]*([A-Za-z0-9][A-Za-z0-9\-\.\s]{1,50}?)"
         r"(?=\s*(?:Serial|S\/N|No\.?\s*[:.]|Pin|\n|$)|\s+[A-Z][a-z])",
+        re.IGNORECASE,
+    ),
+    # Mid-line "Type"/"Typ" followed by a single token that contains a digit
+    # (e.g. nameplate "Fax: DW 10 Type Pellematic08"). Requiring a digit in the
+    # immediate token means "Heater type: Condensing" never matches.
+    re.compile(
+        r"(?<![A-Za-z])(?:Type|Typ)(?![A-Za-z])\s*[:\s.]*"
+        r"([A-Z][A-Za-z0-9]*[0-9][A-Za-z0-9]*)"
+        r"(?=\s|$|[.,;:])",
         re.IGNORECASE,
     ),
 ]
 
 MODEL_GENERIC = re.compile(r"\b([A-Z]{1,3}[\s\-]?\d{2,5}[A-Za-z]?(?:[\s\-]\d{2,4}[A-Za-z]?)?)\b")
+
+# Gas/flue-category codes printed on every gas boiler plate (G20/G25/G31 gas
+# groups, C13-C93 flue systems, B23/B33 appliance categories). Letter + 2-3
+# digits like "G20 20", "C930" or "C980X" are not models.
+GAS_CODE_RE = re.compile(r"^[GBC]\d{2,3}(?:[\s\-/]\d{2,4})?[A-Za-z]?$")
+
+# OCR artifact: a letter directly followed by a leading zero then digits
+# (e.g. "L0330" read from "C33X") -- never a real model, but pattern-matches
+# the generic model rule and serial-like codes.
+LEADING_ZERO_CODE_RE = re.compile(r"^[A-Z]0\d{2,4}$")
+
+# Postal codes on nameplate addresses ("D-88475 Schwendi", "A-4133
+# Niederkappel", "CH-9466 Sennwald") pattern-match the generic model rule.
+POSTAL_CODE_RE = re.compile(r"^[A-Za-z]{1,2}-\d{4,5}$")
 
 # Tokens that end a manufacturer-anchored model phrase (German field headers,
 # legal forms, common connectors). Models are typically Title/ALL-CAPS token
@@ -160,14 +197,31 @@ def _extract_model_after_manufacturer(text: str, manufacturer: str | None) -> st
     return phrase
 
 
+def _clean_model_candidate(candidate: str) -> str | None:
+    """Trim noise that OCR merges onto the end of a labeled model.
+
+    Merged lines like "Mod.: WTC-GB 90-A 0063 BS 3948 CE 0085" capture
+    trailing certificate/article codes; leading-zero codes ("0063",
+    "0085") mark the field boundary. Returns None if nothing real remains.
+    """
+    candidate = candidate.strip(" .:-–-|/\\")
+    tokens = re.split(r"\s+", candidate)
+    for i, tok in enumerate(tokens):
+        if re.match(r"^0\d{3,}$", tok):
+            tokens = tokens[:i]
+            break
+    trimmed = " ".join(tokens).strip(" .:-–-|/\\")
+    return trimmed if len(trimmed) >= 3 else None
+
+
 def extract_model(text: str) -> str | None:
     """Extract the most likely model number from OCR text."""
     # First pass: explicit model labels
     for pattern in MODEL_PATTERNS:
         match = pattern.search(text)
         if match:
-            candidate = match.group(1).strip()
-            if len(candidate) >= 3 and len(candidate) <= 40:
+            candidate = _clean_model_candidate(match.group(1))
+            if candidate and len(candidate) <= 40:
                 return candidate
 
     # Second pass: the model often directly follows the manufacturer name
@@ -182,9 +236,18 @@ def extract_model(text: str) -> str | None:
         val = m.group(1).strip()
         parts = re.findall(r"\d+", val)
         num_digits = sum(len(p) for p in parts)
-        # Skip pure years, short numeric codes, and known non-model patterns
+        # Skip pure years, short numeric codes, gas/flue-category codes, and
+        # known non-model patterns
         if re.match(r"^\d{4}$", val):
             continue
+        if GAS_CODE_RE.match(val):
+            continue  # G20 20 / C930 / B23-style appliance codes
+        if LEADING_ZERO_CODE_RE.match(val):
+            continue  # "L0330" OCR garble of a flue-code line
+        if POSTAL_CODE_RE.match(val):
+            continue  # "D-88475" address postcode, not a model
+        if re.search(r"(?:^|\s)0\d{3,}(?=\s|$)", val):
+            continue  # trailing certificate codes like "CE 0085"
         if num_digits < 3:
             continue  # not enough digit content to be a model
         if num_digits > 12:

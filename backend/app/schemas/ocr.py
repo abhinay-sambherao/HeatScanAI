@@ -52,6 +52,7 @@ class OCRResponse(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     address: Optional[str] = None
+    postal_code: Optional[str] = None
     city: Optional[str] = None
     installation_year: Optional[int] = Field(default=None, ge=1980, le=2030)
     created_at: datetime
@@ -64,4 +65,5 @@ class OCRRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     address: Optional[str] = None
+    postal_code: Optional[str] = None
     city: Optional[str] = None
