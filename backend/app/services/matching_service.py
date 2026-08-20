@@ -20,12 +20,41 @@ WEIGHT_ENERGY_CLASS = 0.10
 WEIGHT_FUEL_TYPE = 0.10
 WEIGHT_HEAT_OUTPUT = 0.10
 
+# P0: minimum model score when both OCR and EPREL have a model string
+MIN_MODEL_SCORE = 50
+
+# P1: heat output tolerance — same logic as crawler_service._kw_in_range
+_HEAT_OUTPUT_BAND_FACTOR = 0.25
+_HEAT_OUTPUT_BAND_MIN = 2.0  # kW absolute minimum band
+
 
 def _fuzzy_score(query, target) -> float:
     """Compute fuzzy match ratio between two strings. Returns 0 if either is None."""
     if not query or not target:
         return 0.0
     return fuzz.token_sort_ratio(query.lower(), target.lower())
+
+
+def _extract_kw(value) -> float | None:
+    """Parse a heat-output value ('17.2 kW' string or number) into kW float."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        m = re.search(r"(\d+(?:[.,]\d+)?)", value.replace(",", "."))
+        if m:
+            return float(m.group(1))
+    return None
+
+
+def _kw_in_range(detected_kw: float, hit_kw: float) -> bool:
+    """True if the EPREL heat output plausibly matches the nameplate value.
+
+    Tolerance is the larger of 25% relative or 2 kW absolute.
+    """
+    band = max(_HEAT_OUTPUT_BAND_MIN, _HEAT_OUTPUT_BAND_FACTOR * detected_kw)
+    return abs(hit_kw - detected_kw) <= band
 
 
 def _brand_consistent(mfr_name, manufacturer, raw_text) -> bool:
@@ -150,6 +179,21 @@ async def find_matches(
 
         if not has_primary_match:
             continue
+
+        # P0: When both OCR and EPREL have a model, require minimum overlap.
+        # This prevents brand-only matches from returning wrong products
+        # (e.g. Ochsner "Europa MINI EW P" → "AIR 80 C13A").
+        if model and product.model and model_score < MIN_MODEL_SCORE:
+            continue
+
+        # P1: Heat output hard filter — skip products whose rated output is
+        # implausible given the nameplate value. This is the most reliable
+        # discriminator when model strings don't align.
+        detected_kw = _extract_kw(heat_output)
+        hit_kw = _extract_kw(product.heat_output)
+        if detected_kw is not None and hit_kw is not None:
+            if not _kw_in_range(detected_kw, hit_kw):
+                continue
 
         # Blend raw text boost (only if substantial match)
         # Don't boost if manufacturer is clearly different
