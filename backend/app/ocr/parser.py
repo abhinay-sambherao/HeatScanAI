@@ -71,7 +71,7 @@ MANUFACTURER_ALIASES = {
 # gas-category codes like "G20", "G31", "B23", "C13(X)" whose leading letter
 # would otherwise be read as a class ("G").
 ENERGY_CLASS_PATTERN = re.compile(
-    r"(?<![A-Za-z0-9)\]\-])(A\+{0,3}|[B-G])(?![A-Za-z+0-9\-])", re.IGNORECASE
+    r"(?<![A-Za-z0-9)\]\-])(A\+{0,3}|[B-G])(?![A-Za-z+0-9\-])"
 )
 
 HEAT_OUTPUT_PATTERN = re.compile(
@@ -130,7 +130,19 @@ _MODEL_STOPWORDS = {
     "gmbh", "ag", "co", "ltd", "llc", "group", "werke", "sa", "inc", "kg",
     "und", "&", "mit", "bei", "der", "die", "das", "eine", "ein", "nicht",
     "für", "fur", "an", "auf", "zu", "im", "am", "des", "den",
+    "ohne", "gebläse", "erdgas", "feuerstättenart", "anlage", "ja", "nein",
+    "keine", "angabe", "mangel", "festgestellt", "gemäss", "entspricht",
+    "verordnung", "grenzwert", "messunsicherheit", "betreiber", "verpflichtet",
+    "messung", "wiederholung", "überprüfung", "ergebnis",
 }
+
+# Regex matching power-value tokens like "7,8kW", "0-0kW", "7,80 kW" — these
+# are measurement values on chimney sweep reports, not model identifiers.
+_POWER_VALUE_RE = re.compile(r"^\d[\d,.\-]*\s*kW$", re.IGNORECASE)
+
+# 4-digit years (2006, 1998, …) appear after models on chimney sweep reports
+# ("Junkers /ZSR / 2006") and should stop the model collection.
+_YEAR_RE = re.compile(r"^(?:19|20)\d{2}$")
 
 FUEL_KEYWORDS = {
     "gas": ["gas", "erdgas", "natural gas", "methane", "butane", "propane", "lpg"],
@@ -185,6 +197,10 @@ def _extract_model_after_manufacturer(text: str, manufacturer: str | None) -> st
     parts = []
     for tok in re.findall(r"[A-Za-z0-9][A-Za-z0-9.\-]*", seg):
         if tok.lower().strip(".-") in _MODEL_STOPWORDS:
+            break
+        if _YEAR_RE.match(tok):
+            break
+        if _POWER_VALUE_RE.match(tok):
             break
         parts.append(tok)
     phrase = " ".join(parts).strip()
@@ -264,8 +280,16 @@ def extract_model(text: str) -> str | None:
 
 def extract_energy_class(text: str) -> str | None:
     """Extract the energy efficiency class from OCR text."""
-    match = ENERGY_CLASS_PATTERN.search(text)
-    return match.group(1).upper() if match else None
+    for match in ENERGY_CLASS_PATTERN.finditer(text):
+        value = match.group(1).upper()
+        # Reject temperature units: "62 C", "19,0 C" (from °C after cleaning)
+        start = match.start()
+        if start > 0:
+            prefix = text[:start].rstrip()
+            if prefix and prefix[-1].isdigit():
+                continue
+        return value
+    return None
 
 
 def extract_heat_output(text: str) -> str | None:
