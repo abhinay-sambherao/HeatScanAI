@@ -29,7 +29,7 @@ Based on the 285-hour estimate submitted to EVH.
 | 19 | German i18n & GDPR compliance | 5 h | 6 h | 0 h | DONE |
 | 20 | Multi-image upload support | — | 10 h | 0 h | DONE |
 | 21 | User guidance diagram | — | 8 h | 0 h | DONE |
-| | **TOTAL** | **285 h** | **443 h** | **0 h** | **100%** |
+| | **TOTAL** | **285 h** | **408 h** | **0 h** | **100%** |
 
 ---
 
@@ -299,7 +299,7 @@ Based on the 285-hour estimate submitted to EVH.
 
 ## All Milestones Complete ✓
 
-All 21 milestones totaling 285 estimated hours have been completed. Actual hours spent: **443h** (155% of estimate), reflecting new feature additions (multi-image upload, user guidance diagram) and hardening work (data completion, cleanup, matching gate, test-suite fixes, daily scheduler, nameplate dataset insights, Paddle crash isolation, mobile deployment, live-scan bug fixes, CD redesign, matching filters, parser improvements) on top of the original scope. Hours reflect **actual time spent on the project** (implementation, debugging, research, testing, documentation, deployment, and repeated redesign iterations); long-running automated processes are counted only for the engineering work around them — see the "time accounting method" note in HOURS.md. The 158-hour overrun was driven by:
+All 21 milestones totaling 285 estimated hours have been completed. Actual hours spent: **408h** (143% of estimate), reflecting new feature additions (multi-image upload, user guidance diagram) and hardening work (data completion, cleanup, matching gate, test-suite fixes, daily scheduler, nameplate dataset insights, Paddle crash isolation, mobile deployment, live-scan bug fixes, CD redesign, matching filters, parser improvements) on top of the original scope. Hours reflect **actual time spent on the project** (implementation, debugging, research, testing, documentation, deployment, and repeated redesign iterations); long-running automated processes are counted only for the engineering work around them — see the "time accounting method" note in HOURS.md. The 123-hour overrun was driven by:
 
 - **EPREL API reverse engineering** (14h) — undocumented JSON API required overnight research
 - **Frontend scope expansion** (35h vs 8h estimated) — camera capture, location metadata, i18n, GDPR, DB browser
