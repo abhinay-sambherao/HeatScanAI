@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import uuid
 from typing import Optional, List, Tuple
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ocr_result import OCRResult
@@ -43,6 +44,14 @@ def _merge_pipeline_results(results: List[dict]) -> dict:
             merged[field] = candidates[0][1]
         else:
             merged[field] = None
+
+    # Merge installation_year: prefer highest-confidence non-None value
+    year_candidates = [(r["confidence"], r.get("installation_year")) for r in results if r.get("installation_year")]
+    if year_candidates:
+        year_candidates.sort(key=lambda x: x[0], reverse=True)
+        merged["installation_year"] = year_candidates[0][1]
+    else:
+        merged["installation_year"] = None
 
     merged["per_image"] = [
         {
@@ -159,6 +168,7 @@ async def _persist_and_match(
         fuel_type=merged.get("fuel_type"),
         heat_output=merged.get("heat_output"),
         raw_text=merged["raw_text"],
+        installation_year=installation_year,
     )
 
     # Fallback 1: EPREL API on-demand
@@ -179,6 +189,7 @@ async def _persist_and_match(
                 fuel_type=merged.get("fuel_type"),
                 heat_output=merged.get("heat_output"),
                 raw_text=merged["raw_text"],
+                installation_year=installation_year,
             )
 
     # Fallback 2: manufacturer website
@@ -197,6 +208,7 @@ async def _persist_and_match(
                 fuel_type=merged.get("fuel_type"),
                 heat_output=merged.get("heat_output"),
                 raw_text=merged["raw_text"],
+                installation_year=installation_year,
             )
 
     for match_data in matches:
@@ -231,4 +243,65 @@ async def _persist_and_match(
         "city": ocr_result.city,
         "installation_year": ocr_result.installation_year,
         "created_at": ocr_result.created_at,
+    }
+
+
+async def update_installation_year(
+    db: AsyncSession,
+    ocr_result_id: uuid.UUID,
+    installation_year: int,
+) -> dict:
+    """Update the installation year on an OCR result and re-run matching.
+
+    Deletes old matches and creates new ones filtered by the provided year.
+    Returns the updated OCR result ID, year, and new matches.
+    """
+    result = await db.execute(
+        select(OCRResult).where(OCRResult.id == ocr_result_id)
+    )
+    ocr_result = result.scalar_one_or_none()
+    if not ocr_result:
+        raise ValueError(f"OCR result {ocr_result_id} not found")
+
+    ocr_result.installation_year = installation_year
+    await db.flush()
+
+    # Delete old matches
+    for match in list(ocr_result.matches):
+        await db.delete(match)
+    await db.flush()
+
+    # Re-extract fields from stored raw text for proper matching
+    from app.ocr.parser import extract_fields
+    fields = extract_fields(ocr_result.raw_text)
+
+    # Re-run matching with the year filter
+    matches = await find_matches(
+        db,
+        manufacturer=fields.get("manufacturer"),
+        model=fields.get("model"),
+        energy_class=fields.get("energy_class"),
+        fuel_type=fields.get("fuel_type"),
+        heat_output=fields.get("heat_output"),
+        raw_text=ocr_result.raw_text,
+        installation_year=installation_year,
+    )
+
+    for match_data in matches:
+        match_obj = Match(
+            id=uuid.uuid4(),
+            ocr_result_id=ocr_result.id,
+            product_id=match_data["product_id"],
+            score=match_data["score"],
+            matched_attributes=match_data["matched_attributes"],
+            reason=match_data["reason"],
+        )
+        db.add(match_obj)
+
+    await db.flush()
+
+    return {
+        "ocr_result_id": ocr_result.id,
+        "installation_year": installation_year,
+        "matches": matches,
     }

@@ -67,3 +67,17 @@ class OCRRequest(BaseModel):
     address: Optional[str] = None
     postal_code: Optional[str] = None
     city: Optional[str] = None
+
+
+class RematchRequest(BaseModel):
+    """Request to re-match an OCR result with a user-provided year."""
+
+    installation_year: int = Field(ge=1980, le=2030)
+
+
+class RematchResponse(BaseModel):
+    """Response from the rematch endpoint."""
+
+    ocr_result_id: uuid.UUID
+    installation_year: int
+    matches: List[OCRMatchResult]

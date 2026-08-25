@@ -2,10 +2,10 @@
 
 ## HeatScan AI — Backend
 
-**Total Hours: 402 hours**
-**Duration: July 15 – August 13, 2026 (30 days, excl. exams Jul 23–25)**
+**Total Hours: 443 hours**
+**Duration: July 15 – August 21, 2026 (38 days, excl. exams Jul 23–25)**
 **Developer: Abhinay Sambherao**
-**Project Estimate: 285 hours (141% complete)**
+**Project Estimate: 285 hours (155% complete)**
 
 ---
 
@@ -101,6 +101,14 @@
 | 70 | Scraper configs, frontend progress fix & docs | 2 | Aug 12 | Added ÖkoFEN/Ochsner/ELCO scraper configs (Sieger skipped — defunct brand); frontend progress bar no longer shows "Done!" before the response arrives; AGENTS.md §8 + WORK_PROGRESS.md updated |
 | 71 | Mobile deployment, CORS & UI responsiveness | 3 | Aug 12 | Netlify deploy on custom domain (heatscan.abhiinayy.in); backend exposed via Cloudflare Tunnel (replaced flaky localhost.run — throttling 503s, dropped connections, auth denials); CORS regex allowlist extended for custom/netlify/tunnel origins; configurable `window.__API__`; mobile fixes (search-bar stacking, two-row nav) killing iOS shrink-to-fit overflow; health-check retry before "Disconnected"; verified end-to-end OCR through the tunnel |
 | 72 | Live-scan bug fix: model extraction + results fields | 2 | Aug 12 | Real phone scan of an ELCO inspection report returned "Model: Not detected" although "ELCO, Thision S Plus 13.1" was in the raw OCR, and the Erdgas fuel type was never displayed. Root cause: parser only matched labeled ("Typ:") and generic uppercase-code patterns — models listed right after the brand were missed, and the results summary grid only rendered manufacturer/model/confidence. Fixes: new manufacturer-anchored model pass (`_extract_model_after_manufacturer`, stops at German field headers/legal forms) — now extracts "Thision S Plus 13.1", "WPL 18"; summary grid now shows energy class, fuel type, heat output. Full suite 102 passed (+5 tests) |
+| 73 | CD redesign planning & postal_code backend | 5 | Aug 14 | Corporate design decisions (Calibri font, secondary color palette), backend `postal_code` field added through full stack (model, schema, API param, service, DB migration `003_add_postal_code_to_ocr`) |
+| 74 | OCR pipeline multi-variant & parser fixes | 5 | Aug 15 | Rewrote pipeline from preprocessed-only to multi-variant (preprocessed + original + 2x upscale), fast-path for high-confidence, garbled flue-table rejection. Parser: ÖkoFEN (by product line + HQ address), Ochsner, ELCO, Sieger manufacturers added; garbled noise patterns (gas codes, postal codes, leading-zero codes) rejected |
+| 75 | Frontend CD redesign implementation | 5 | Aug 16 | heizungcheck branding applied: Calibri font, primary #E40000, secondary gold/orange palette. Results layout restructured: images → Address+Data columns → Privacy notice → Alternatives. OSM iframe map, postal code display, "Seems incorrect?" edit buttons |
+| 76 | Animated scan progress & per-image results | 4 | Aug 17 | Spinning ring animation with step icons and timing, shimmer progress bar, slide-up results card. Per-image detail toggle for multi-image scans, confidence badges, raw OCR text expandable section |
+| 77 | Backend matching P0+P1 filters | 5 | Aug 18 | P0: minimum `model_score ≥ 50` threshold (prevents wrong model matches). P1: heat output hard filter via `_kw_in_range()` (±25% or ±2kW). Fixed "Multiple rows were found" error — `scalar_one_or_none()` → `.limit(1).scalars().first()` for ilike queries in manufacturer_scraper.py |
+| 78 | Frontend fuel i18n & language switch fix | 5 | Aug 19 | `FUEL_I18N` mapping for fuel type translation (electricity→Strom, etc.), `tFuel()` helper. Fixed `getLang()` bug (both ternary branches returned `'de'`). Language switch now re-renders scan results via `_lastScanData` on window object |
+| 79 | Integration testing & regression fixes | 6 | Aug 20 | Full end-to-end testing of scan flow, edit/save results, product browser, dashboard. Verified matching P0+P1 with 12-product sweep (12/12). Committed backend fixes: `85f96b1` (postal_code), `e1aca67` (P0+P1), `78d6a8c` (Multiple rows). Frontend: `c5529ea` (CD redesign), `9df4119` (animated progress), `cbf8ac0` (fuel i18n), `40ec611` (language switch) |
+| 80 | Demo prep & parser chimney sweep fixes | 6 | Aug 21 | Full demo readiness check (125/125 tests, frontend/backend review, API route verification), conference demo reply email draft. Frontend fix: edit cancel/save no longer navigates to main page (`cancelEdit()` re-renders from `_lastScanData`, `saveEdit()` collects edited values and re-renders). Backend parser fixes: chimney sweep report false positives — model extraction stops at year tokens (2006) and power values (kW), energy class rejects °C temperature units, removed `re.IGNORECASE`. Year extraction feature plan drafted |
 
 ---
 
@@ -136,8 +144,12 @@
 | Multi-image Upload | 8 | 2% |
 | User Guidance Diagram | 6 | 1% |
 | Mobile Deployment & CORS | 3 | 1% |
-| OCR Parser & Results UI Fixes | 2 | 1% |
-| **Total** | **402** | **100%** |
+| OCR Parser & Results UI Fixes | 2 | 0% |
+| CD Redesign & Frontend Polish | 14 | 3% |
+| Matching P0+P1 Filters | 5 | 1% |
+| Demo Prep & Bug Fixes | 6 | 1% |
+| Integration Testing | 6 | 1% |
+| **Total** | **443** | **100%** |
 
 ---
 
@@ -173,7 +185,15 @@
 | Aug 11 (Tue) | 14h | 370h | Multi-image upload, user guidance diagram (Typenschild-Guide) |
 | Aug 12 (Wed) | 16h | 386h | Nameplate dataset insights, Paddle crash isolation, scraper configs, mobile deployment (Netlify + tunnel), live-scan fix |
 | Aug 13 (Thu) | 16h | 402h | Final wrap-up & QA, verification, daily scheduler, AGENTS/docs v6, hours & progress tracking |
-| **Total** | **402h** | | **141% of 285h estimate** |
+| Aug 14 (Fri) | 5h | 407h | CD redesign planning, postal_code backend (full stack) |
+| Aug 15 (Sat) | 5h | 412h | OCR pipeline multi-variant rewrite, parser fixes (ÖkoFEN, Ochsner, ELCO, Sieger, garbled noise) |
+| Aug 16 (Sun) | 5h | 417h | Frontend CD redesign (heizungcheck branding, results layout, map, edit buttons) |
+| Aug 17 (Mon) | 4h | 421h | Animated scan progress, per-image results, confidence badges |
+| Aug 18 (Tue) | 5h | 426h | Backend matching P0+P1 filters, Multiple rows fix |
+| Aug 19 (Wed) | 5h | 431h | Frontend fuel i18n, language switch re-render fix |
+| Aug 20 (Thu) | 6h | 437h | Integration testing, regression fixes, all commits pushed |
+| Aug 21 (Fri) | 6h | 443h | Demo prep, edit cancel/save fix, parser chimney sweep fixes, year extraction plan |
+| **Total** | **443h** | | **155% of 285h estimate** |
 
 ---
 

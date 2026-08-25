@@ -29,7 +29,7 @@ Based on the 285-hour estimate submitted to EVH.
 | 19 | German i18n & GDPR compliance | 5 h | 6 h | 0 h | DONE |
 | 20 | Multi-image upload support | — | 10 h | 0 h | DONE |
 | 21 | User guidance diagram | — | 8 h | 0 h | DONE |
-| | **TOTAL** | **285 h** | **330 h** | **0 h** | **100%** |
+| | **TOTAL** | **285 h** | **443 h** | **0 h** | **100%** |
 
 ---
 
@@ -299,12 +299,15 @@ Based on the 285-hour estimate submitted to EVH.
 
 ## All Milestones Complete ✓
 
-All 21 milestones totaling 285 estimated hours have been completed. Actual hours spent: **402h** (141% of estimate), reflecting new feature additions (multi-image upload, user guidance diagram) and hardening work (data completion, cleanup, matching gate, test-suite fixes, daily scheduler, nameplate dataset insights, Paddle crash isolation, mobile deployment, live-scan bug fixes) on top of the original scope. Hours reflect **actual time spent on the project** (implementation, debugging, research, testing, documentation, deployment, and repeated redesign iterations); long-running automated processes are counted only for the engineering work around them — see the "time accounting method" note in HOURS.md. The 117-hour overrun was driven by:
+All 21 milestones totaling 285 estimated hours have been completed. Actual hours spent: **443h** (155% of estimate), reflecting new feature additions (multi-image upload, user guidance diagram) and hardening work (data completion, cleanup, matching gate, test-suite fixes, daily scheduler, nameplate dataset insights, Paddle crash isolation, mobile deployment, live-scan bug fixes, CD redesign, matching filters, parser improvements) on top of the original scope. Hours reflect **actual time spent on the project** (implementation, debugging, research, testing, documentation, deployment, and repeated redesign iterations); long-running automated processes are counted only for the engineering work around them — see the "time accounting method" note in HOURS.md. The 158-hour overrun was driven by:
 
 - **EPREL API reverse engineering** (14h) — undocumented JSON API required overnight research
 - **Frontend scope expansion** (35h vs 8h estimated) — camera capture, location metadata, i18n, GDPR, DB browser
 - **Manufacturer website scraper** (14h) — originally not in scope, added for fallback chain completeness
 - **Data completion & cleanup** (Aug 5–12) — full 5-group model crawl (128,378 records) + extras crawl (+2,034), orphan/test-record cleanup with backup, Truma generic-match suppression, fuel-type group filtering, daily refresh scheduler
+- **CD redesign & frontend polish** (Aug 14–17) — heizungcheck corporate design (Calibri, gold/orange palette), restructured results layout, animated scan progress, per-image results, language switch fixes
+- **Matching P0+P1 filters** (Aug 18) — minimum model score threshold, heat output hard filter, "Multiple rows found" fix
+- **Parser & demo prep** (Aug 19–21) — chimney sweep report false positive fixes, fuel i18n, edit cancel/save navigation fix, conference demo preparation
 
 ### Key Dependencies Resolved
 

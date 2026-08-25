@@ -308,11 +308,76 @@ def extract_fuel_type(text: str) -> str | None:
     return None
 
 
+# Patterns for installation/manufacture year extraction from nameplates.
+# Ordered by specificity: explicit labels first, then context-proximity.
+_YEAR_LABEL_RE = re.compile(
+    r"(?:Baujahr|Bau\s*jahr|Errichtung|Herstelldatum|Herstellungsdatum|"
+    r"Jahr|Jahr\s*der|Year|Installation\s*year|Manufactured|Built)"
+    r"\s*[:\s.]*(?:im\s+Jahre\s+)?(\d{4})",
+    re.IGNORECASE,
+)
+
+# MM/YYYY or MM.YYYY date formats (e.g. "02/2024", "03.2019")
+_DATE_MONTH_YEAR_RE = re.compile(r"\b(\d{1,2})[/.](\d{4})\b")
+
+# Standalone 4-digit year in valid range
+_STANDALONE_YEAR_RE = re.compile(r"\b((?:19|20)\d{2})\b")
+
+
+def extract_installation_year(text: str) -> int | None:
+    """Extract installation or manufacture year from OCR text.
+
+    Searches for:
+    - Labeled years: "Baujahr: 2006", "Errichtung 2015", "Herstelldatum: 02/2024"
+    - Date formats: "02/2024", "03.2019"
+    - Standalone years (1980-2030) near manufacturer/model context lines
+
+    Returns:
+        Year as int, or None if not found.
+    """
+    # Pass 1: explicit labels (highest confidence)
+    match = _YEAR_LABEL_RE.search(text)
+    if match:
+        year = int(match.group(1))
+        if 1980 <= year <= 2030:
+            return year
+
+    # Pass 2: date formats (MM/YYYY, MM.YYYY)
+    match = _DATE_MONTH_YEAR_RE.search(text)
+    if match:
+        year = int(match.group(2))
+        if 1980 <= year <= 2030:
+            return year
+
+    # Pass 3: standalone year near manufacturer context
+    manufacturer = extract_manufacturer(text)
+    if manufacturer:
+        idx = text.lower().find(manufacturer.lower())
+        if idx != -1:
+            # Search within ±300 chars of the manufacturer mention
+            start = max(0, idx - 300)
+            end = min(len(text), idx + len(manufacturer) + 300)
+            segment = text[start:end]
+            for m in _STANDALONE_YEAR_RE.finditer(segment):
+                year = int(m.group(1))
+                if 1980 <= year <= 2030:
+                    return year
+
+    # Pass 4: any standalone year in valid range (last resort)
+    for m in _STANDALONE_YEAR_RE.finditer(text):
+        year = int(m.group(1))
+        if 1980 <= year <= 2030:
+            return year
+
+    return None
+
+
 def extract_fields(text: str) -> dict:
     """Extract all relevant fields from OCR text in a single pass.
 
     Returns:
-        Dictionary with keys: manufacturer, model, energy_class, heat_output, fuel_type
+        Dictionary with keys: manufacturer, model, energy_class, heat_output,
+        fuel_type, installation_year
     """
     cleaned = clean_text(text)
     return {
@@ -321,4 +386,5 @@ def extract_fields(text: str) -> dict:
         "energy_class": extract_energy_class(cleaned),
         "heat_output": extract_heat_output(cleaned),
         "fuel_type": extract_fuel_type(cleaned),
+        "installation_year": extract_installation_year(cleaned),
     }

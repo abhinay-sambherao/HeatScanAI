@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.config import settings
-from app.schemas.ocr import OCRResponse, OCRMatchResult, ImageResult
-from app.services.ocr_service import process_upload, process_multiple_uploads
+from app.schemas.ocr import OCRResponse, OCRMatchResult, ImageResult, RematchRequest, RematchResponse
+from app.services.ocr_service import process_upload, process_multiple_uploads, update_installation_year
 from app.core.exceptions import InvalidFileError
 
 router = APIRouter(prefix="/ocr", tags=["OCR"])
@@ -160,4 +160,48 @@ async def upload_and_analyze(
         city=result.get("city"),
         installation_year=result.get("installation_year"),
         created_at=result["created_at"],
+    )
+
+
+@router.post("/{ocr_result_id}/rematch", response_model=RematchResponse)
+async def rematch_with_year(
+    ocr_result_id: uuid.UUID,
+    request: RematchRequest,
+    db: AsyncSession = Depends(get_db),
+) -> RematchResponse:
+    """Re-match an existing OCR result with a user-provided installation year.
+
+    Updates the installation year on the OCR result and re-runs matching
+    with the year filter applied. Old matches are replaced.
+    """
+    try:
+        result = await update_installation_year(
+            db=db,
+            ocr_result_id=ocr_result_id,
+            installation_year=request.installation_year,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Rematch failed: {exc}") from exc
+
+    match_results = [
+        OCRMatchResult(
+            product_id=m["product_id"],
+            manufacturer=m["manufacturer"],
+            model=m["model"],
+            energy_class=m.get("energy_class"),
+            fuel_type=m.get("fuel_type"),
+            heat_output=m.get("heat_output"),
+            score=m["score"],
+            matched_attributes=m.get("matched_attributes"),
+            reason=m.get("reason"),
+        )
+        for m in result["matches"]
+    ]
+
+    return RematchResponse(
+        ocr_result_id=result["ocr_result_id"],
+        installation_year=result["installation_year"],
+        matches=match_results,
     )

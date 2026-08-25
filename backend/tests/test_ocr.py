@@ -10,6 +10,7 @@ from app.ocr.parser import (
     extract_heat_output,
     extract_fuel_type,
     extract_fields,
+    extract_installation_year,
 )
 from app.services.ocr_service import _persist_and_match
 
@@ -258,3 +259,61 @@ class TestPersistAndMatchReturnsExtractedFields:
         assert result["energy_class"] == "A"
         assert result["fuel_type"] == "gas"
         assert result["heat_output"] == "14,4 kW"
+
+
+class TestExtractInstallationYear:
+    """Tests for installation year extraction from OCR text."""
+
+    def test_baujahr_label(self):
+        text = "Vaillant ecoTEC Pro VUW 242/5-3\nBaujahr: 2015\nNennwärmeleistung 24 kW"
+        assert extract_installation_year(text) == 2015
+
+    def test_errichtung_label(self):
+        text = "Hersteller: Junkers\nErrichtung 2008\nModell: CerapurComfort"
+        assert extract_installation_year(text) == 2008
+
+    def test_herstelldatum_label(self):
+        text = "Stiebel Eltron WPL 18\nHerstelldatum: 03.2019\nLeistung 18 kW"
+        assert extract_installation_year(text) == 2019
+
+    def test_date_format_mm_slash_yyyy(self):
+        text = "Bosch Junkers\n02/2024\nZS 2.300-1 K"
+        assert extract_installation_year(text) == 2024
+
+    def test_date_format_mm_dot_yyyy(self):
+        text = "Viessmann Vitodens 100\n11.2017\n26 kW"
+        assert extract_installation_year(text) == 2017
+
+    def test_standalone_year_near_manufacturer(self):
+        text = "ELCO Thision S Plus\nELCO Heiztechnik GmbH\n2012\n13.1 kW Erdgas"
+        assert extract_installation_year(text) == 2012
+
+    def test_no_year_returns_none(self):
+        text = "Vaillant ecoTEC Pro VUW 242/5-3\nNennwärmeleistung 24 kW"
+        assert extract_installation_year(text) is None
+
+    def test_year_out_of_range_ignored(self):
+        text = "Junkers ZSR\n1975\nG20 20"
+        assert extract_installation_year(text) is None
+
+    def test_year_2006_from_chimney_report(self):
+        text = "ZSR 2006 0 7 8kW 7 8kW 7 80 kW\nGas-Niedertemperaturkessel\nHersteller Junkers"
+        assert extract_installation_year(text) == 2006
+
+    def test_year_from_text_near_model(self):
+        text = "Weishaupt Mod.: WTC-GB 90-A\nBaujahr 2020\nGas-Brennwertkessel"
+        assert extract_installation_year(text) == 2020
+
+    def test_multiple_years_returns_first(self):
+        text = "Vaillant 2015\nModell 2020\nLeistung 24 kW"
+        assert extract_installation_year(text) == 2015
+
+    def test_year_in_fields_dict(self):
+        text = "Bosch\nModell: Condens 7000i\nBaujahr: 2018\n28 kW Gas"
+        fields = extract_fields(text)
+        assert fields["installation_year"] == 2018
+
+    def test_no_year_in_fields_returns_none(self):
+        text = "Vaillant ecoTEC Pro 24 kW"
+        fields = extract_fields(text)
+        assert fields["installation_year"] is None

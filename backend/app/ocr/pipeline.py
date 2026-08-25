@@ -114,4 +114,5 @@ def run_pipeline(image_data: bytes) -> dict:
         "energy_class": fields["energy_class"],
         "heat_output": fields["heat_output"],
         "fuel_type": fields["fuel_type"],
+        "installation_year": fields.get("installation_year"),
     }

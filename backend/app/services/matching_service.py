@@ -27,6 +27,10 @@ MIN_MODEL_SCORE = 50
 _HEAT_OUTPUT_BAND_FACTOR = 0.25
 _HEAT_OUTPUT_BAND_MIN = 2.0  # kW absolute minimum band
 
+# P2: installation year tolerance — skip EPREL products registered more
+# than this many years after the nameplate year.
+_INSTALL_YEAR_TOLERANCE = 2
+
 
 def _fuzzy_score(query, target) -> float:
     """Compute fuzzy match ratio between two strings. Returns 0 if either is None."""
@@ -113,6 +117,7 @@ async def find_matches(
     fuel_type=None,
     heat_output=None,
     raw_text=None,
+    installation_year=None,
     limit: int = 5,
 ):
     """Find the top matching products using RapidFuzz fuzzy scoring.
@@ -120,6 +125,9 @@ async def find_matches(
     When manufacturer/model are None (OCR didn't detect them), weights are
     redistributed to the remaining fields. Also performs a raw text fallback
     search against product model names.
+
+    When installation_year is provided, filters out EPREL products registered
+    more than _INSTALL_YEAR_TOLERANCE years after the nameplate year.
     """
     stmt = select(Product).options(
         selectinload(Product.manufacturer),
@@ -193,6 +201,15 @@ async def find_matches(
         hit_kw = _extract_kw(product.heat_output)
         if detected_kw is not None and hit_kw is not None:
             if not _kw_in_range(detected_kw, hit_kw):
+                continue
+
+        # P2: Installation year filter — skip EPREL products whose release
+        # date is more than _INSTALL_YEAR_TOLERANCE years after the nameplate
+        # year. This prevents matching old nameplates to newer products that
+        # share similar model strings.
+        if installation_year and product.release_date:
+            product_year = product.release_date.year
+            if product_year > installation_year + _INSTALL_YEAR_TOLERANCE:
                 continue
 
         # Blend raw text boost (only if substantial match)
