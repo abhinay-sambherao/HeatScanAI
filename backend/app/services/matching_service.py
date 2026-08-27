@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.product import Product
+from app.models.retail_product import RetailProduct
 from app.services.model_aliases import alias_overrides_model_score
 
 # Base weights for composite scoring
@@ -455,6 +456,76 @@ async def find_matches(
             db, manufacturer, model, energy_class, fuel_type,
             heat_output, raw_text, installation_year, limit,
         )
+
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return scored[:limit]
+
+
+# Retail enrichment: how confidently a retail listing must match the OCR
+# manufacturer+model before being surfaced as a secondary "retail" match.
+_RETAIL_MIN_MFR_SCORE = 60
+_RETAIL_MIN_MODEL_SCORE = 65
+
+
+async def find_retail_matches(
+    db: AsyncSession,
+    manufacturer,
+    model,
+    limit: int = 3,
+) -> list:
+    """Find matching retail listings (e.g. heizungsdiscount24) for enrichment.
+
+    Runs *after* the EPREL/manufacturer identification. Retail hits never
+    replace an EPREL match — they are surfaced alongside it so the generation
+    team sees a currently purchasable, URL-bearing unit. Both brand and model
+    must clear independent thresholds to avoid wrong-guess noise.
+    """
+    if not manufacturer and not model:
+        return []
+
+    stmt = select(RetailProduct)
+    result = await db.execute(stmt)
+    listings = result.scalars().all()
+
+    scored = []
+    for listing in listings:
+        mfr_score = _fuzzy_score(manufacturer, listing.brand) if manufacturer else 0.0
+        model_score = _fuzzy_score(model, listing.model) if model else 0.0
+
+        # Require solid evidence on at least one axis; if both detected, both must
+        # clear their thresholds — a brand- or model-only substring hit is not
+        # enough to send potential leads to the wrong product page.
+        if manufacturer and not model:
+            if mfr_score < _RETAIL_MIN_MFR_SCORE:
+                continue
+        elif model and not manufacturer:
+            if model_score < _RETAIL_MIN_MODEL_SCORE:
+                continue
+        elif manufacturer and model:
+            if mfr_score < _RETAIL_MIN_MFR_SCORE or model_score < _RETAIL_MIN_MODEL_SCORE:
+                continue
+
+        composite = (mfr_score * 0.4 + model_score * 0.6) if model_score else mfr_score
+        if composite < 60.0:
+            continue
+
+        scored.append({
+            "manufacturer": listing.brand,
+            "model": listing.model,
+            "name": listing.name,
+            "retail_url": listing.url,
+            "retail_price": listing.price,
+            "retail_currency": listing.currency,
+            "retail_source": listing.source,
+            "score": round(composite, 2),
+            "match_type": "retail",
+            "matched_attributes": {
+                "manufacturer": {"score": round(mfr_score, 1), "target": listing.brand},
+                "model": {"score": round(model_score, 1), "target": listing.model},
+            },
+            "reason": "Retail listing (%s): %s EUR @ %s"
+            % (listing.source, listing.price if listing.price is not None else "n/a", listing.url),
+        })
 
     scored.sort(key=lambda x: x["score"], reverse=True)
     return scored[:limit]

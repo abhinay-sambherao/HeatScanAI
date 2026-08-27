@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db, async_session_factory
 from app.schemas.crawler import CrawlerRunResponse, CrawlerLogOut, CrawlerLogList
 from app.services.crawler_service import run_crawler
+from app.services.retail_crawler import run_retail_crawler
 from app.models.crawler_log import CrawlerLog
 
 router = APIRouter(prefix="/crawler", tags=["Crawler"])
@@ -78,6 +79,57 @@ async def trigger_crawler(
         status="queued",
         message=f"Crawler job queued (max_pages={max_pages}/group). Check /crawler/logs for status.",
     )
+
+
+@router.post("/retail")
+async def trigger_retail_crawler(
+    limit: int = Query(0, ge=0, description="Max product pages to fetch (0=unlimited, full crawl)"),
+    db: AsyncSession = Depends(get_db),
+) -> CrawlerRunResponse:
+    """Trigger a retail crawl (heizungsdiscount24) into retail_products.
+
+    Enriches scan results with purchasable reseller listings (URL + price).
+    Runs asynchronously; check /crawler/logs for status (category=retail).
+    """
+    log = CrawlerLog(
+        id=uuid.uuid4(),
+        started_at=datetime.now(timezone.utc),
+        status="queued",
+        category="retail",
+    )
+    db.add(log)
+    await db.flush()
+    asyncio.create_task(_run_retail_background(log.id, limit))
+    return CrawlerRunResponse(
+        job_id=log.id,
+        status="queued",
+        message=f"Retail crawler job queued (limit={limit or 'full'}). Check /crawler/logs for status.",
+    )
+
+
+async def _run_retail_background(log_id: uuid.UUID, limit: int) -> None:
+    """Run the retail crawl in the background, updating the shared log row."""
+    async with async_session_factory() as db:
+        stmt = select(CrawlerLog).where(CrawlerLog.id == log_id)
+        log = (await db.execute(stmt)).scalar_one_or_none()
+        try:
+            if log:
+                log.status = "running"
+                await db.flush()
+            stats = await run_retail_crawler(limit=limit)
+            if log:
+                log.status = "finished"
+                log.records_count = stats.get("new", 0)
+                log.finished_at = datetime.now(timezone.utc)
+                await db.commit()
+        except Exception as exc:
+            if log:
+                log.status = "failed"
+                log.error_message = str(exc)
+                log.finished_at = datetime.now(timezone.utc)
+                await db.commit()
+            else:
+                await db.rollback()
 
 
 @router.get("/logs", response_model=CrawlerLogList)

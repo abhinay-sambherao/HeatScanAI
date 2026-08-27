@@ -80,6 +80,19 @@ Upload a heating system nameplate image for OCR analysis. No auth required.
         "raw_text_match": {"score": 85.0, "target": "ecoTEC plus 837 VUW"}
       },
       "reason": "Manufacturer match: Vaillant (100%); Raw text match: ecoTEC plus 837 VUW (85%)"
+    },
+    {
+      "product_id": null,
+      "manufacturer": "Vaillant",
+      "model": "ecoTEC exclusive 837/5-5",
+      "name": "Vaillant ecoTEC exclusive 837/5-5 Brennwert-Kombigerät",
+      "match_type": "retail",
+      "retail_url": "https://www.heizungsdiscount24.de/gas-heizung/vaillant-ecotec-exclusive-837-5-5.html",
+      "retail_price": 2698.0,
+      "retail_currency": "EUR",
+      "retail_source": "heizungsdiscount24",
+      "score": 92.0,
+      "reason": "Retail listing (heizungsdiscount24): 2698.0 EUR @ https://…"
     }
   ],
   "latitude": 51.1657,
@@ -98,7 +111,7 @@ Upload a heating system nameplate image for OCR analysis. No auth required.
 | confidence | Overall OCR confidence (0–100) |
 | raw_text | Raw text from PaddleOCR |
 | cleaned_text | After regex cleanup |
-| matches | Top 5 product matches (sorted by score) |
+| matches | Top product matches (sorted by score). EPREL matches have a `product_id`; retail-enrichment entries have `match_type: "retail"` plus `name`, `retail_url`, `retail_price`, `retail_currency`, `retail_source` and a null `product_id` |
 | latitude | GPS latitude (or null) |
 | longitude | GPS longitude (or null) |
 | address | Street address (or null) |
@@ -316,6 +329,29 @@ curl -X POST "http://127.0.0.1:8000/crawler/run?max_pages=0" \
 
 # Incremental: only fetch the control/solar groups
 curl -X POST "http://127.0.0.1:8000/crawler/run?max_pages=0&groups=spaceheatertemperaturecontrol,spaceheatersolardevice,waterheatersolardevices" \
+  -H "Authorization: Bearer <token>"
+```
+
+### POST /crawler/retail
+
+Trigger a retail **enrichment** crawl (heizungsdiscount24.de) into the
+`retail_products` table. Reads the shop's product sitemaps, filters to
+heating-relevant categories (air-conditioning is explicitly excluded), extracts
+each product's JSON-LD `Product` block (brand/model/name/price), and stores the
+reseller URL. Runs asynchronously and logs progress under `category=retail`.
+
+**Requires authentication** (JWT token).
+
+**Query Parameters:**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| limit | int | 0 | Max product pages to fetch (0 = full crawl, ~11.6k heating products) |
+
+**Response:** same shape as `/crawler/run` (job id, status `queued`, message).
+
+```bash
+curl -X POST "http://127.0.0.1:8000/crawler/retail?limit=0" \
   -H "Authorization: Bearer <token>"
 ```
 

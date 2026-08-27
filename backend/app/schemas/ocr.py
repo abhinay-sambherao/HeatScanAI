@@ -11,9 +11,14 @@ from pydantic import BaseModel, Field
 class OCRMatchResult(BaseModel):
     """A single product match from OCR analysis."""
 
-    product_id: uuid.UUID
+    product_id: Optional[uuid.UUID] = None
     manufacturer: str
     model: str
+    name: Optional[str] = None
+    retail_url: Optional[str] = None
+    retail_price: Optional[float] = None
+    retail_currency: Optional[str] = None
+    retail_source: Optional[str] = None
     energy_class: Optional[str] = None
     fuel_type: Optional[str] = None
     heat_output: Optional[str] = None

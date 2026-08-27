@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.ocr_result import OCRResult
 from app.models.match import Match
 from app.ocr.pipeline import run_pipeline
-from app.services.matching_service import find_matches
+from app.services.matching_service import find_matches, find_retail_matches
 from app.services.crawler_service import search_and_add_product
 from app.services.manufacturer_scraper import search_and_add_from_manufacturer
 
@@ -215,7 +215,19 @@ async def _persist_and_match(
                 installation_year=installation_year,
             )
 
+    # Retail enrichment: surface currently purchasable listings (reseller URL +
+    # price) alongside the EPREL/manufacturer identification. These are returned
+    # in the payload but intentionally NOT persisted as Match rows (no EPREL
+    # product_id), so the DB keeps only authoritative product matches.
+    retail_matches = await find_retail_matches(
+        db,
+        manufacturer=merged.get("manufacturer"),
+        model=merged.get("model"),
+    )
+
     for match_data in matches:
+        if not match_data.get("product_id"):
+            continue
         match_obj = Match(
             id=uuid.uuid4(),
             ocr_result_id=ocr_result.id,
@@ -238,7 +250,7 @@ async def _persist_and_match(
         "confidence": merged["confidence"],
         "raw_text": merged["raw_text"],
         "cleaned_text": merged["cleaned_text"],
-        "matches": matches,
+        "matches": matches + retail_matches,
         "per_image": merged.get("per_image", []),
         "latitude": ocr_result.latitude,
         "longitude": ocr_result.longitude,
@@ -291,7 +303,15 @@ async def update_installation_year(
         installation_year=installation_year,
     )
 
+    retail_matches = await find_retail_matches(
+        db,
+        manufacturer=fields.get("manufacturer"),
+        model=fields.get("model"),
+    )
+
     for match_data in matches:
+        if not match_data.get("product_id"):
+            continue
         match_obj = Match(
             id=uuid.uuid4(),
             ocr_result_id=ocr_result.id,
@@ -307,5 +327,5 @@ async def update_installation_year(
     return {
         "ocr_result_id": ocr_result.id,
         "installation_year": installation_year,
-        "matches": matches,
+        "matches": matches + retail_matches,
     }

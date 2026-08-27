@@ -211,6 +211,61 @@ EPREL products have `fuelType`, `energyClass`, and `ratedHeatOutput` fields. Use
 
 ---
 
+## Retail Enrichment (heizungsdiscount24)
+
+Beyond EPREL/manufacturer matching, the platform can surface **retail
+enrichment** results — currently purchasable units with a reseller URL and
+price. This helps the generation team move from "identified unit" to "actionable
+lead" and lets a user verify a match against a real, in-stock product page.
+
+### Source & pipeline
+
+- `app/services/retail_crawler.py` downloads `sitemaps/sitemap_products{1,2,3}.xml`
+  (~25k/25k/21.8k URLs), **filters to heating-relevant categories** via
+  `HEATING_CATEGORY_PATHS` (gas/oil/biomass boilers, heat pumps, water heaters,
+  storage, controls, solar) and **excludes `klimaanlagen`** (air conditioning) to
+  preserve the heating-only scope. ~11.6k products qualify.
+- Each product page's JSON-LD `Product` block is parsed for brand, name,
+  sku/mpn, price and currency. The page must be decoded as `iso-8859-1`
+  (the shop is a German `ISO-8859-1` site — UTF-8 decoding throws on `0xdf`).
+- Brand is normalized via `brand_normalizer.normalize_brand`; the model is
+  derived from the product name (`_extract_model`, e.g. `auroCOMPACT VSC S
+  146/4-5 190`), falling back to the mpn.
+- Results are upserted into a new `retail_products` table (keyed on URL).
+  `Base.metadata.create_all` creates it automatically on startup — **no manual
+  migration needed** on dev/Pi/EC2.
+- Trigger: `POST /crawler/retail?limit=0` (background job, logged under
+  `category=retail`).
+
+### How retail matches appear in results
+
+`find_retail_matches()` (matching_service) runs **after** the EPREL chain. It
+queries `retail_products` and requires independent brand **and** model fuzzy
+thresholds (`_RETAIL_MIN_MFR_SCORE=60`, `_RETAIL_MIN_MODEL_SCORE=65`) so a
+brand- or model-only substring can't route a lead to the wrong product page.
+Retail hits are appended to the OCR/rematch response `matches` list with:
+
+- `match_type: "retail"` and a **null** `product_id` (so the frontend's
+  match-type badge shows them as enrichment, not authoritative identification);
+- `name`, `retail_url`, `retail_price`, `retail_currency`, `retail_source`.
+
+### Trade-offs & honest-match policy
+
+- Retail entries **never replace** an EPREL/manufacturer identification — they
+  are strictly additive. If the OCR/EPREL chain finds no authoritative match,
+  the result stays "no match"; a retail listing alone does not constitute an
+  identification.
+- Model strings are derived from reseller titles, which are noisier than
+  EPREL `modelIdentifier`s; low-confidence retail candidates are dropped by the
+  thresholds above, favouring "no retail match" over a wrong guess (matches the
+  project's honest-match stance).
+- Retail data goes stale (availability/price change); refresh with a re-run of
+  `/crawler/retail`.
+
+Tests: `backend/tests/test_retail.py` (14). Full suite green (200).
+
+---
+
 ## Priority Order
 
 | Priority | Change | Effort | Impact | Status |

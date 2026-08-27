@@ -4,6 +4,7 @@ from app.models.product import Product
 from app.models.ocr_result import OCRResult
 from app.models.match import Match
 from app.models.crawler_log import CrawlerLog
+from app.models.retail_product import RetailProduct
 
 __all__ = [
     "Manufacturer",
@@ -12,4 +13,5 @@ __all__ = [
     "OCRResult",
     "Match",
     "CrawlerLog",
+    "RetailProduct",
 ]
