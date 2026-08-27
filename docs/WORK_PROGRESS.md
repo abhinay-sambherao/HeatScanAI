@@ -308,6 +308,8 @@ All 21 milestones totaling 285 estimated hours have been completed. Actual hours
 - **CD redesign & frontend polish** (Aug 14–17) — heizungcheck corporate design (Calibri, gold/orange palette), restructured results layout, animated scan progress, per-image results, language switch fixes
 - **Matching P0+P1 filters** (Aug 18) — minimum model score threshold, heat output hard filter, "Multiple rows found" fix
 - **Parser & demo prep** (Aug 19–21) — chimney sweep report false positive fixes, fuel i18n, edit cancel/save navigation fix, conference demo preparation
+- **Installation year extraction** (Aug 22) — `Baujahr`/`Errichtung` label + standalone-year parsing, P2 release-date filter, `POST /ocr/{id}/rematch`, frontend year prompt (DE/EN), 13 tests
+- **Brand normalization & data quality** (Aug 26–27) — legal-entity→canonical brand map (Viessmann, KWB, KOSPEL, Mitsubishi Electric, Dražice, Fröling, Aisin, Glen Dimplex, LG), trivial-code/legal-entity/composition rejection, crawler `_is_plausible_model()` filter, `scripts/normalize_brands.py` migration applied live (11,624 reassignments; 0 garbled, 0 WEB-). DB 132,078 products / 2,528 manufacturers. 27 tests → 165 passing.
 
 ### Key Dependencies Resolved
 
