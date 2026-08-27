@@ -61,6 +61,18 @@ EPREL_EXTRA_GROUPS = [
     {"name": "Water heater solar devices", "slug": "waterheatersolardevices"},
 ]
 
+# Every group this app may crawl. HeizungScan is a heating-systems lead-gen
+# tool, so the catalogue is deliberately restricted to *heating* appliances
+# (boilers, heat pumps, water heaters, storage, plus controls/solar) and to
+# reversible units that also heat (EPREL registers these under "space
+# heaters"). Standalone air-conditioning / cooling-only units live in EPREL's
+# separate `airconditioners` family and are NEVER crawled. This allow-list is
+# enforced as a guard so a caller cannot accidentally pull in a non-heating
+# group via the `groups`/`only_groups` params.
+HEATING_ONLY_GROUP_SLUGS: frozenset[str] = frozenset(
+    {g["slug"] for g in EPREL_PRODUCT_GROUPS + EPREL_EXTRA_GROUPS}
+)
+
 # Full pagination walks every offset. The old offset-sampling approach only
 # touched a handful of offsets per group and was heavily lossy.
 
@@ -421,7 +433,10 @@ async def run_crawler(
     async with httpx.AsyncClient(headers=HEADERS, base_url=EPREL_BASE) as client:
         if only_groups:
             pool = {g["slug"]: g for g in EPREL_PRODUCT_GROUPS + EPREL_EXTRA_GROUPS}
-            all_groups = [pool[slug] for slug in only_groups if slug in pool]
+            # Heating-only guard: ignore any requested non-heating group slug
+            # (e.g. EPREL's airconditioners) rather than crawling it.
+            heating_groups = [g for g in only_groups if g in HEATING_ONLY_GROUP_SLUGS]
+            all_groups = [pool[slug] for slug in heating_groups if slug in pool]
         else:
             all_groups = EPREL_PRODUCT_GROUPS
             if include_extras:

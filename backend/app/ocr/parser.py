@@ -98,6 +98,16 @@ MODEL_PATTERNS = [
         r"(?=\s|$|[.,;:])",
         re.IGNORECASE,
     ),
+    # Mid-line "Type"/"Typ" followed by a two-part model code: a short ALL-CAPS
+    # prefix then digits, e.g. "TYP:WPL 18". Case-sensitive so lowercase prose
+    # ("type: Condensing") never matches, and short codes that sort-of look
+    # like words are allowed. Handles nameplates that print the label mid-line
+    # with the model split over a space.
+    re.compile(
+        r"(?<![A-Za-z])(?:[Tt][Yy][Pp][Ee]?)(?![A-Za-z])\s*[:\s.]*"
+        r"([A-Z]{1,6}(?:[\s\-]\d{2,5}[A-Za-z]?|\d[A-Za-z0-9\-]*))"
+        r"(?=\s|$|[.,;:])",
+    ),
 ]
 
 MODEL_GENERIC = re.compile(r"\b([A-Z]{1,3}[\s\-]?\d{2,5}[A-Za-z]?(?:[\s\-]\d{2,4}[A-Za-z]?)?)\b")

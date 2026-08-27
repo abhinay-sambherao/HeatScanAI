@@ -32,6 +32,35 @@ _HEAT_OUTPUT_BAND_MIN = 2.0  # kW absolute minimum band
 # than this many years after the nameplate year.
 _INSTALL_YEAR_TOLERANCE = 2
 
+# Heating-system scope. This is a heating lead-gen tool: only heating
+# appliances (including reversible heat pumps that also heat) may ever appear
+# in results. Standalone air-conditioning / cooling-only units are excluded.
+# EPREL itself places reversible units under the "space heaters" family, so
+# every real category we crawl falls into this set; this allow-list is a
+# defensive guard in case a non-heating category ever gets loaded.
+HEATING_ONLY_CATEGORIES: frozenset[str] = frozenset({
+    "Space heaters (heat pumps, gas, oil, combination)",
+    "Space heater temperature controls",
+    "Space heater solar devices",
+    "Heat pumps",
+    "Heat pumps - Air-to-water",
+    "Heat pumps - Ground-source",
+    "Heat pumps - Exhaust air",
+    "Gas boilers",
+    "Oil boilers",
+    "Biomass boilers",
+    "Electric boilers",
+    "Combination heaters",
+    "Warm air heaters",
+    "Local space heaters",
+    "Solid fuel boilers",
+    "Water heaters",
+    "Water heater solar devices",
+    "Hot water storage tanks",
+    "Solar thermal collectors",
+    "Temperature controls",
+})
+
 
 def _fuzzy_score(query, target) -> float:
     """Compute fuzzy match ratio between two strings. Returns 0 if either is None."""
@@ -176,6 +205,10 @@ async def _attribute_lookup(
     for product in products:
         mfr_name = product.manufacturer.name if product.manufacturer else None
 
+        category_name = product.category.name if product.category else None
+        if category_name and category_name not in HEATING_ONLY_CATEGORIES:
+            continue
+
         mfr_score = _fuzzy_score(manufacturer, mfr_name)
         energy_score = _fuzzy_score(energy_class, product.energy_class)
         fuel_score = _fuzzy_score(fuel_type, product.fuel_type)
@@ -239,6 +272,7 @@ async def _attribute_lookup(
             "product_id": product.id,
             "manufacturer": mfr_name or "Unknown",
             "model": product.model,
+            "category": category_name,
             "energy_class": product.energy_class,
             "fuel_type": product.fuel_type,
             "heat_output": product.heat_output,
@@ -282,6 +316,13 @@ async def find_matches(
     scored = []
     for product in products:
         mfr_name = product.manufacturer.name if product.manufacturer else None
+
+        # Heating-system scope guard: never surface cooling-only / non-heating
+        # products, even if one is present in the catalogue. Reversible units
+        # that also heat are in the allow-list via their "heat pump" family.
+        category_name = product.category.name if product.category else None
+        if category_name and category_name not in HEATING_ONLY_CATEGORIES:
+            continue
 
         mfr_score = _fuzzy_score(manufacturer, mfr_name)
         model_score = _fuzzy_score(model, product.model)
@@ -394,6 +435,7 @@ async def find_matches(
             "product_id": product.id,
             "manufacturer": mfr_name or "Unknown",
             "model": product.model,
+            "category": category_name,
             "energy_class": product.energy_class,
             "fuel_type": product.fuel_type,
             "heat_output": product.heat_output,

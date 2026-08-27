@@ -4,6 +4,7 @@ aliases), P4 (match-type classification) and P5 (attribute lookup)."""
 import uuid
 import pytest
 
+from app.models.category import Category
 from app.models.manufacturer import Manufacturer
 from app.models.product import Product
 from app.services.matching_service import (
@@ -124,3 +125,44 @@ class TestAliasPromotesWeakModelP3:
         )
         assert res and res[0]["match_type"] == MATCH_TYPE_EXACT
         assert res[0]["model"] == "thision l plus 13"
+
+
+@pytest.mark.asyncio
+class TestHeatingOnlyScope:
+    """Standalone air-conditioning / cooling-only products must never appear,
+    even if a non-heating category is present in the catalogue."""
+
+    async def _seed_with_categories(self, db, categories):
+        mfr = Manufacturer(name="Stiebel Eltron")
+        db.add(mfr)
+        await db.flush()
+        cats = {}
+        for idx, name in enumerate(categories):
+            cat = Category(name=name)
+            db.add(cat)
+            await db.flush()
+            cats[name] = cat
+        db.add(Product(
+            id=uuid.uuid4(), eprel_id="eprel-ac", manufacturer_id=mfr.id,
+            model="WPL 18", fuel_type="electricity", energy_class="A+++",
+            category_id=cats["Air conditioners"].id,
+        ))
+        db.add(Product(
+            id=uuid.uuid4(), eprel_id="eprel-hp", manufacturer_id=mfr.id,
+            model="WPL 18", fuel_type="electricity", energy_class="A+++",
+            category_id=cats["Heat pumps"].id,
+        ))
+        await db.flush()
+
+    async def test_cooling_only_product_is_excluded(self, db_session):
+        await self._seed_with_categories(db_session, ["Air conditioners", "Heat pumps"])
+        res = await find_matches(
+            db_session, manufacturer="Stiebel Eltron", model="WPL 18",
+            raw_text="Stiebel Eltron WPL 18",
+        )
+        assert res
+        # The reversible "Heat pumps" unit may match; the "Air conditioners"
+        # cooling-only unit must not.
+        assert all(r["model"] == "WPL 18" for r in res)
+        ac_hits = [r for r in res if r.get("category") == "Air conditioners"]
+        assert not ac_hits

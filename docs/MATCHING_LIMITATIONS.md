@@ -41,6 +41,24 @@ OCR fields → find_matches() [local DB]
 - Composite: manufacturer 35%, model 35%, energy 10%, fuel 10%, output 10%
 - Gate: `brand_ok` OR `mfr≥90` OR (`model≥80` + long model) — **no minimum model threshold**
 
+### Heating-Only Scope (product family guard)
+
+HeizungScan is a **heating-systems** lead-gen tool, so results are restricted to
+heating appliances — and to **reversible units that also heat** (EPREL registers
+these under the "space heaters" family). Standalone air-conditioning / pure
+cooling-only units (EPREL's `airconditioners` family) are excluded by two layers:
+
+1. **Crawl scope** (`crawler_service.py`): only heating slugs are ever crawled;
+   `HEATING_ONLY_GROUP_SLUGS` also rejects any non-heating slug passed via the
+   `groups`/`only_groups` params.
+2. **Match filter** (`matching_service.py`): `HEATING_ONLY_CATEGORIES` allow-list
+   drops any product whose category isn't a heating/reversible one before scoring.
+
+> **Note on "AC" suffixes** (e.g. Stiebel `WPL 10 AC`, `WPL 15 AS`): `AC`/`AS`/`SL`
+> are model-variant codes on Stiebel air-source heat pumps (**W**ärmepumpe **L**uft),
+> *not* air conditioners. They are heating systems and correctly matchable.
+
+
 ---
 
 ## Why It Fails: Nameplate vs EPREL Naming
@@ -181,7 +199,7 @@ EPREL products have `fuelType`, `energyClass`, and `ratedHeatOutput` fields. Use
 | **P3** | Alias table | Large (ongoing) | Solves structural naming mismatch | ✅ `model_aliases.py` bootstrapped; promote to `exact_model` |
 
 Tests: `backend/tests/test_matching_improvements.py` (P2–P5) + existing
-`test_matching.py`. Full suite green (180).
+`test_matching.py`. Full suite green (184).
 
 ---
 

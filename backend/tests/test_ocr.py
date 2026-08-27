@@ -122,6 +122,20 @@ class TestExtractModel:
     def test_typenschild_word_is_not_a_label(self):
         assert extract_model("Typenschild ABC123") == "ABC123"
 
+    def test_mid_line_typed_two_part_model_code(self):
+        # All-caps TYP: label followed by a short all-caps code + digits split
+        # over a space (WPL 18 live-scan regression). The COP-table value
+        # "W 35 11" must NOT win over the labeled model.
+        text = ("STIEBEL ELTRON CE AP TYP:WPL 18 BESTELL-NR.:074411 "
+                "NR.:00206-7759 Kaeltemittel : R407C")
+        assert extract_model(text) == "WPL 18"
+
+    def test_mid_line_typed_all_caps(self):
+        assert extract_model("HEATER TYPE: WPL 18") == "WPL 18"
+
+    def test_mid_line_typed_lowercase_prose_not_model(self):
+        assert extract_model("Heater type: Condensing 24 kW") is None
+
     def test_mod_abbreviation_label_truncates_trailing_codes(self):
         text = "Mod.: WTC-GB 90-A 0063 BS 3948 CE 0085 Max Weishaupt GmbH"
         assert extract_model(text) == "WTC-GB 90-A"
