@@ -26,6 +26,8 @@ class Product(Base):
     efficiency: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     fuel_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     release_date: Mapped[Optional[datetime]] = mapped_column(Date, nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(String(50), nullable=True,
+                                                  server_default="EPREL", index=True)
     raw_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

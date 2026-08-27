@@ -266,6 +266,40 @@ Tests: `backend/tests/test_retail.py` (14). Full suite green (200).
 
 ---
 
+## Variant Grouping & Match Source
+
+### Why a "same model" appears multiple times
+
+EPREL registers each configuration of a heater line as its own row (e.g.
+Vaillant `auroCOMPACT VSC S 146/4-5 150 (E-DE)`, `… (LL-DE)`, `… D 146/4-5 150
+(E-DE)`, `… 190`, …). A nameplate carries only the base code
+(`auroCOMPACT VSC S 146/4-5 150`), so all variants score similarly and used to
+fill the top-5 slots.
+
+### Fix
+
+`_dedup_variants()` (matching_service) groups scored matches that collapse to
+the same `_variant_key()` — stripping a trailing parenthesized gas type
+(`(E-DE)`, `(LL-DE)`, …), a trailing version number, and a single config letter
+(S/D) directly before a slash-number code. The best-scoring registration becomes
+the representative card; the rest are listed under its `variants`.
+
+The version/config stripping is **slash-code-guarded**: it only applies when the
+model contains a `/n-n` code (the core type), so a capacity-only model such as
+`WPL 18` is never merged with `WPL 21`, and `VUW 236/5-5` stays distinct from
+`VUW 236/4-5`.
+
+### Match source
+
+Every match now carries a `source` field so the UI can say where it came from:
+`EPREL` (local catalogue), `EPREL API` (on-demand search fallback),
+`Manufacturer website` (scraper fallback), or a retail source (heizungsdiscount24).
+Backed by a new `products.source` column (`ALTER TABLE products ADD COLUMN source
+VARCHAR(50) DEFAULT 'EPREL';` for existing deployments — applied locally).
+
+Tests: `tests/test_matching_improvements.py` (TestVariantGrouping + TestVariantKey).
+Full suite green (**207**).
+
 ## Priority Order
 
 | Priority | Change | Effort | Impact | Status |

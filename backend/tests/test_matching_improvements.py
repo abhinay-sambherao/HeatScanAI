@@ -10,6 +10,7 @@ from app.models.product import Product
 from app.services.matching_service import (
     find_matches,
     _classify_match,
+    _variant_key,
     MATCH_TYPE_EXACT,
     MATCH_TYPE_VARIANT,
     MATCH_TYPE_BRAND_ONLY,
@@ -166,3 +167,80 @@ class TestHeatingOnlyScope:
         assert all(r["model"] == "WPL 18" for r in res)
         ac_hits = [r for r in res if r.get("category") == "Air conditioners"]
         assert not ac_hits
+
+
+async def _seed_many(db, manufacturer, models):
+    mfr = Manufacturer(name=manufacturer)
+    db.add(mfr)
+    await db.flush()
+    for i, model in enumerate(models):
+        db.add(Product(
+            id=uuid.uuid4(), eprel_id=f"eprel-var-{i}", manufacturer_id=mfr.id,
+            model=model, fuel_type="gas", energy_class="A", heat_output="14 kW",
+            source="EPREL",
+        ))
+    await db.flush()
+
+
+@pytest.mark.asyncio
+class TestVariantGrouping:
+    """Distinct EPREL registrations of the same heater line (config / gas-type /
+    version suffixes) collapse into one representative card."""
+
+    async def test_aurocompact_variants_grouped(self, db_session):
+        await _seed_many(db_session, "Vaillant", [
+            "auroCOMPACT VSC S 146/4-5 150 (E-DE)",
+            "auroCOMPACT VSC S 146/4-5 150 (LL-DE)",
+            "auroCOMPACT VSC D 146/4-5 150 (E-DE)",
+            "auroCOMPACT VSC D 146/4-5 150 (LL-DE)",
+            "auroCOMPACT VSC D 146/4-5 190 (E-DE)",
+        ])
+        res = await find_matches(
+            db_session, manufacturer="Vaillant", model="auroCOMPACT VSC S 146/4-5 150",
+            raw_text="Vaillant auroCOMPACT VSC S 146/4-5 150",
+        )
+        # All five collapse to a single base-models group.
+        assert len(res) <= 1, [r["model"] for r in res]
+        rep = res[0]
+        assert rep["model"] == "auroCOMPACT VSC S 146/4-5 150 (E-DE)"
+        assert rep.get("variants")
+        # The four lower-ranked registrations are listed as variants.
+        variant_models = {v["model"] for v in rep["variants"]}
+        assert len(variant_models) == 4
+
+    async def test_distinct_capacities_not_merged(self, db_session):
+        await _seed_many(db_session, "Stiebel Eltron", ["WPL 18", "WPL 21"])
+        res = await find_matches(
+            db_session, manufacturer="Stiebel Eltron", model="WPL 18",
+            raw_text="Stiebel Eltron WPL 18",
+        )
+        # WPL 18 and WPL 21 are different units — WPL 21 must not be bundled
+        # as a variant of WPL 18 (no slash code triggers variant stripping).
+        rep = next((r for r in res if r["model"] == "WPL 18"), None)
+        assert rep is not None
+        if rep.get("variants"):
+            assert all(v["model"] != "WPL 21" for v in rep["variants"])
+
+    async def test_source_surfaces_from_product(self, db_session):
+        await _seed_many(db_session, "Vaillant", ["model 150 (E-DE)", "model 190 (E-DE)"])
+        res = await find_matches(
+            db_session, manufacturer="Vaillant", model="model 150",
+            raw_text="Vaillant model 150",
+        )
+        assert res
+        assert res[0].get("source") == "EPREL"
+
+
+class TestVariantKey:
+    def test_vaillant_variants_share_key(self):
+        assert _variant_key("auroCOMPACT VSC S 146/4-5 150 (E-DE)") == \
+            _variant_key("auroCOMPACT VSC D 146/4-5 190 (LL-DE)")
+
+    def test_capacity_only_models_stay_distinct(self):
+        assert _variant_key("WPL 18") != _variant_key("WPL 21")
+
+    def test_different_slash_code_distinct(self):
+        assert _variant_key("ecoTEC plus VUW 236/5-5") != _variant_key("ecoTEC plus VUW 236/4-5")
+
+    def test_strips_parenthesized_gas_type(self):
+        assert _variant_key("jeegu 300 (E-DE)") == _variant_key("jeegu 300 (LL-DE)")

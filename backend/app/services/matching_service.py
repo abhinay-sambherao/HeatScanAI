@@ -70,6 +70,68 @@ def _fuzzy_score(query, target) -> float:
     return fuzz.token_sort_ratio(query.lower(), target.lower())
 
 
+def _variant_key(model: str) -> str:
+    """Canonical key that collapses EPREL near-duplicate variants of the same
+    physical unit, so a nameplate that carries only the base code doesn't fill
+    the result list with 4-5 registrations of the same heater.
+
+    Strips, in order:
+      - a trailing parenthesized suffix such as a gas type, e.g. ``(E-DE)``,
+        ``(LL-DE)`` (and any ``(...)`` marker);
+      - a trailing standalone version number, e.g. `` 150``, `` 190``;
+      - a short config letter (S/D...) directly before a slash-number model
+        code, e.g. `` VSC S 146/4-5`` -> `` VSC 146/4-5``.
+
+    Genuinely different products are unaffected (their base key differs). The
+    version/config stripping is only applied when the model contains a
+    slash-number code (e.g. ``146/4-5``), which marks the core type — so a
+    capacity-only model like ``WPL 18`` (no slash code) is never merged with
+    ``WPL 21``.
+    """
+    if not model:
+        return model
+    key = re.sub(r"\s*\([^)]*\)\s*$", "", str(model).strip())
+    if re.search(r"\d+/\d", key):
+        # Only when a slash-code exists is a trailing number a variant version,
+        # and a short single config letter (S/D) before the slash-code a variant.
+        key = re.sub(r"\s+\d{2,4}\s*$", "", key)
+        key = re.sub(r"\s+([A-Za-z])\s+(\d+/(?:\d[\d/]*))", r" \2", key)
+    return key.strip()
+
+
+def _dedup_variants(scored: list, limit: int) -> list:
+    """Group scored matches that collapse to the same variant key, keeping the
+    highest-scoring entry as the representative and listing the rest under its
+    ``variants`` key (used by the frontend to render "also available as …").
+    Returns at most ``limit`` representative groups, sorted by score.
+    """
+    groups: dict = {}
+    for m in scored:
+        key = _variant_key(m.get("model"))
+        entry = groups.get(key)
+        if entry is None:
+            groups[key] = {"representative": m, "variants": []}
+        elif m.get("score", 0) > entry["representative"].get("score", 0):
+            # Promote the higher-scoring entry to representative; the current
+            # representative becomes a listed variant.
+            entry["variants"].append(
+                {"model": entry["representative"]["model"], "score": entry["representative"].get("score")}
+            )
+            entry["representative"] = m
+        else:
+            variant = {"model": m["model"], "score": m.get("score")}
+            entry["variants"].append(variant)
+
+    representatives = []
+    for entry in groups.values():
+        rep = dict(entry["representative"])
+        rep["variants"] = entry["variants"]
+        representatives.append(rep)
+
+    representatives.sort(key=lambda x: x["score"], reverse=True)
+    return representatives[:limit]
+
+
 def _extract_kw(value) -> float | None:
     """Parse a heat-output value ('17.2 kW' string or number) into kW float."""
     if value is None:
@@ -277,14 +339,14 @@ async def _attribute_lookup(
             "energy_class": product.energy_class,
             "fuel_type": product.fuel_type,
             "heat_output": product.heat_output,
+            "source": product.source or "EPREL",
             "score": round(comp, 2),
             "match_type": MATCH_TYPE_ATTRIBUTE,
             "matched_attributes": matched_attrs,
             "reason": "; ".join(reasons) if reasons else "Attribute-based match",
         })
 
-    scored.sort(key=lambda x: x["score"], reverse=True)
-    return scored[:limit]
+    return _dedup_variants(scored, limit)
 
 
 async def find_matches(
@@ -440,6 +502,7 @@ async def find_matches(
             "energy_class": product.energy_class,
             "fuel_type": product.fuel_type,
             "heat_output": product.heat_output,
+            "source": product.source or "EPREL",
             "score": round(composite, 2),
             "match_type": _classify_match(mfr_score, model_score, brand_ok, model, product.model),
             "matched_attributes": matched_attrs,
@@ -457,8 +520,7 @@ async def find_matches(
             heat_output, raw_text, installation_year, limit,
         )
 
-    scored.sort(key=lambda x: x["score"], reverse=True)
-    return scored[:limit]
+    return _dedup_variants(scored, limit)
 
 
 # Retail enrichment: how confidently a retail listing must match the OCR
@@ -513,6 +575,7 @@ async def find_retail_matches(
             "manufacturer": listing.brand,
             "model": listing.model,
             "name": listing.name,
+            "source": listing.source,
             "retail_url": listing.url,
             "retail_price": listing.price,
             "retail_currency": listing.currency,

@@ -8,6 +8,13 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 
 
+class VariantResult(BaseModel):
+    """A near-duplicate EPREL registration grouped under a representative match."""
+
+    model: str
+    score: Optional[float] = None
+
+
 class OCRMatchResult(BaseModel):
     """A single product match from OCR analysis."""
 
@@ -15,6 +22,8 @@ class OCRMatchResult(BaseModel):
     manufacturer: str
     model: str
     name: Optional[str] = None
+    source: Optional[str] = None
+    variants: Optional[List[VariantResult]] = None
     retail_url: Optional[str] = None
     retail_price: Optional[float] = None
     retail_currency: Optional[str] = None

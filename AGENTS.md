@@ -1,5 +1,30 @@
 # Changes Summary
 
+## 11. Retail Enrichment, Variant Grouping & Match Source
+
+| Area | Change |
+|---|---|
+| `app/models/retail_product.py` | NEW `RetailProduct` → `retail_products` table (source, brand, model, name, url, mpn, sku, price, currency). Auto-created via `create_all` on startup — **no migration** for the retail table. |
+| `app/services/retail_crawler.py` | NEW. heizungsdiscount24 crawler. Walks `sitemaps/sitemap_products{1,2,3}.xml` (NOTE: corrected to the `/sitemaps/` subpath — the old root `/sitemap_productsN.xml` now returns the HTML homepage; earlier smoke tests must use the `/sitemaps/` URLs). Decodes pages **ISO-8859-1** (the shop's charset; UTF-8 throws on `0xdf`). Extracts JSON-LD `Product` (brand/name/mpn/sku/price). Filters to `HEATING_CATEGORY_PATHS` and **excludes `klimaanlagen`** (air conditioning) → ~11.6k heating-appliance products. Brand normalized; model derived from title (`_extract_model`, mpn fallback). |
+| `app/services/matching_service.py` | `find_retail_matches()` — additive retail enrichment (independent brand `_RETAIL_MIN_MFR_SCORE=60` + model `_RETAIL_MIN_MODEL_SCORE=65`; `match_type:"retail"`, null `product_id`, URL/price). `_variant_key()`/`_dedup_variants()` — group EPREL near-duplicate registrations of one heater line (config S/D + gas-type `(E-DE)/(LL-DE)` + version `150/190`) into one representative card with the rest under `variants`. Version/config stripping only applies when a slash-number code exists (so `WPL 18` ≠ `WPL 21`). `source` surfaced in every match dict (`product.source or "EPREL"`). |
+| `app/models/product.py` | NEW `source` column (`String(50)`, server_default `'EPREL'`, indexed). `search_and_add_product` sets `"EPREL API"`; `search_and_add_from_manufacturer` sets `"Manufacturer website"`. |
+| `app/api/crawler.py` | NEW `POST /crawler/retail?limit=N` background endpoint (category=retail). |
+| `app/schemas/ocr.py` | `OCRMatchResult.source`, `OCRMatchResult.variants` (list of `VariantResult`); retail dicts also expose `source`. |
+| docs | `API.md` (`POST /crawler/retail`, match `source`/`variants`/retail fields), `MATCHING_LIMITATIONS.md` retail section, `HOURS.md` → 414h. |
+| Tests | `tests/test_retail.py` (14), `tests/test_matching_improvements.py` variant-grouping/source (+8). Full suite **207 passing**. |
+
+### Database — existing deployments (Pi/EC2) need one migration
+
+The `retail_products` table is created automatically, but the new `products.source`
+column is **not** added to an existing `products` table by `create_all`. Run once:
+
+```sql
+ALTER TABLE products ADD COLUMN source VARCHAR(50) DEFAULT 'EPREL';
+UPDATE products SET source='EPREL' WHERE source IS NULL;
+```
+
+(Applied to local dev Postgres already: 132,078 rows = EPREL.)
+
 ## 9. ÖkoFEN Nameplate Detection (brand missing from nameplate)
 
 | File | Change |

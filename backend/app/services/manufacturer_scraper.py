@@ -481,6 +481,7 @@ async def search_and_add_from_manufacturer(
         energy_class=result.get("energy_class"),
         heat_output=result.get("heat_output"),
         fuel_type=result.get("fuel_type"),
+        source="Manufacturer website",
         raw_json={"source": "manufacturer_website", "url": result.get("source_url")},
     )
     db.add(product)

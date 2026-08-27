@@ -698,6 +698,7 @@ async def search_and_add_product(
                                 energy_class=product_data["energy_class"],
                                 heat_output=product_data["heat_output"],
                                 fuel_type=product_data["fuel_type"],
+                                source="EPREL API",
                                 raw_json=product_data["raw_json"],
                             )
                             db.add(product)

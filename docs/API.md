@@ -69,6 +69,10 @@ Upload a heating system nameplate image for OCR analysis. No auth required.
       "product_id": "uuid",
       "manufacturer": "Vaillant",
       "model": "ecoTEC plus 837 VUW",
+      "source": "EPREL",
+      "variants": [
+        {"model": "ecoTEC plus 837 VUW (LL-DE)", "score": 89.1}
+      ],
       "energy_class": "A",
       "fuel_type": "gas",
       "heat_output": "30 kW",
@@ -111,7 +115,7 @@ Upload a heating system nameplate image for OCR analysis. No auth required.
 | confidence | Overall OCR confidence (0–100) |
 | raw_text | Raw text from PaddleOCR |
 | cleaned_text | After regex cleanup |
-| matches | Top product matches (sorted by score). EPREL matches have a `product_id`; retail-enrichment entries have `match_type: "retail"` plus `name`, `retail_url`, `retail_price`, `retail_currency`, `retail_source` and a null `product_id` |
+| matches | Top product matches (sorted by score). Every match carries a `source` (`EPREL`, `EPREL API`, `Manufacturer website`, or a retail source). EPREL matches have a `product_id` and, when the same heater line has several EPREL registrations, a `variants` list of the grouped near-duplicates; retail-enrichment entries have `match_type: "retail"` plus `name`, `retail_url`, `retail_price`, `retail_currency`, `retail_source` and a null `product_id` |
 | latitude | GPS latitude (or null) |
 | longitude | GPS longitude (or null) |
 | address | Street address (or null) |
