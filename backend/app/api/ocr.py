@@ -135,6 +135,7 @@ async def upload_and_analyze(
             fuel_type=m.get("fuel_type"),
             heat_output=m.get("heat_output"),
             score=m["score"],
+            match_type=m.get("match_type"),
             matched_attributes=m.get("matched_attributes"),
             reason=m.get("reason"),
         )
@@ -194,6 +195,7 @@ async def rematch_with_year(
             fuel_type=m.get("fuel_type"),
             heat_output=m.get("heat_output"),
             score=m["score"],
+            match_type=m.get("match_type"),
             matched_attributes=m.get("matched_attributes"),
             reason=m.get("reason"),
         )

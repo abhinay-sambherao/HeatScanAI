@@ -18,6 +18,7 @@ class OCRMatchResult(BaseModel):
     fuel_type: Optional[str] = None
     heat_output: Optional[str] = None
     score: float = Field(ge=0, le=100)
+    match_type: Optional[str] = None
     matched_attributes: Optional[dict] = None
     reason: Optional[str] = None
 

@@ -1,5 +1,10 @@
 # Matching Limitations & Improvement Plan
 
+> **Status:** P0–P5 are **implemented** (`matching_service.py`, `model_aliases.py`,
+> frontend match-type badges). See the priority table at the bottom for the
+> mapping of each item to its CI / tests, and `PRESENTATION_EXAMPLES.md` for
+> user-facing examples and limits.
+
 ## Problem Statement
 
 OCR scans return products that don't exist when searched on EPREL or manufacturer websites. The OCR extracts nameplate text correctly, but the matching system maps nameplate model strings to wrong EPREL entries because **nameplate strings and EPREL catalog strings are fundamentally different naming systems**.
@@ -166,14 +171,17 @@ EPREL products have `fuelType`, `energyClass`, and `ratedHeatOutput` fields. Use
 
 ## Priority Order
 
-| Priority | Change | Effort | Impact |
-|---|---|---|---|
-| **P0** | Minimum model score threshold | Small | Eliminates wrong matches |
-| **P1** | Heat output hard filter | Small | Best within-brand discriminator |
-| **P5** | Structured attribute lookup | Medium | Catches cases where model is absent |
-| **P2** | Dynamic weight redistribution | Small | Better scoring when model is weak |
-| **P4** | Match type badges in UI | Medium | User trust + transparency |
-| **P3** | Alias table | Large (ongoing) | Solves structural naming mismatch |
+| Priority | Change | Effort | Impact | Status |
+|---|---|---|---|---|
+| **P0** | Minimum model score threshold | Small | Eliminates wrong matches | ✅ `MIN_MODEL_SCORE=50` in `find_matches` |
+| **P1** | Heat output hard filter | Small | Best within-brand discriminator | ✅ `_kw_in_range()` filter |
+| **P5** | Structured attribute lookup | Medium | Catches cases where model is absent | ✅ `_attribute_lookup()` fallback (tagged `attribute_match`) |
+| **P2** | Dynamic weight redistribution | Small | Better scoring when model is weak | ✅ `weak_model` (<30) redistributes model weight to energy/fuel |
+| **P4** | Match type badges in UI | Medium | User trust + transparency | ✅ `match_type` (exact/variant/brand_only/attribute) surfaced in results |
+| **P3** | Alias table | Large (ongoing) | Solves structural naming mismatch | ✅ `model_aliases.py` bootstrapped; promote to `exact_model` |
+
+Tests: `backend/tests/test_matching_improvements.py` (P2–P5) + existing
+`test_matching.py`. Full suite green (180).
 
 ---
 
