@@ -11,6 +11,7 @@ from app.services.crawler_service import (
     _extract_heat_output,
     _extract_kw,
     _extract_manufacturer_name,
+    _is_plausible_model,
     _kw_in_range,
     _parse_product_hit,
 )
@@ -134,12 +135,42 @@ class TestExtractManufacturerName:
         hit = {"organisation": {"organisationTitle": "Some Importer"}, "supplierOrTrademark": None, "trademarkOwner": "Daikin"}
         assert _extract_manufacturer_name(hit) == "Daikin"
 
-    def test_falls_back_to_registrant(self):
+    def test_falls_back_to_registrant_normalized(self):
+        # Registrant legal entity is normalized to the canonical brand.
         hit = {"organisation": {"organisationTitle": "Viessmann Werke GmbH"}, "supplierOrTrademark": None}
-        assert _extract_manufacturer_name(hit) == "Viessmann Werke GmbH"
+        assert _extract_manufacturer_name(hit) == "Viessmann"
+
+    def test_normalizes_legal_entity_brand(self):
+        # supplierOrTrademark may itself be a legal entity; normalizer maps it.
+        hit = {"supplierOrTrademark": "Viessmann Climate Solutions SE"}
+        assert _extract_manufacturer_name(hit) == "Viessmann"
 
     def test_returns_unknown_when_empty(self):
         assert _extract_manufacturer_name({}) == "Unknown"
+
+
+class TestIsPlausibleModel:
+    def test_valid_models(self):
+        assert _is_plausible_model("Vitodens 200-W") is True
+        assert _is_plausible_model("ECOMBI 24M") is True
+
+    def test_trivial_codes_rejected(self):
+        assert _is_plausible_model("a") is False
+        assert _is_plausible_model("AC") is False
+        assert _is_plausible_model("10") is False
+        assert _is_plausible_model("2C") is False
+
+    def test_pure_numeric_rejected(self):
+        assert _is_plausible_model("900") is False
+        assert _is_plausible_model("2024") is False
+
+    def test_composition_rejected(self):
+        assert _is_plausible_model("Wolf Sonnenpaket COB-15; Kollektor") is False
+        assert _is_plausible_model("Package Boiler; 2x Collector") is False
+
+    def test_empty_rejected(self):
+        assert _is_plausible_model("") is False
+        assert _is_plausible_model(None) is False
 
 
 class TestParseProductHit:

@@ -26,6 +26,11 @@ from app.models.manufacturer import Manufacturer
 from app.models.category import Category
 from app.models.crawler_log import CrawlerLog
 from app.core.logging import get_logger
+from app.services.brand_normalizer import (
+    normalize_brand,
+    is_valid_brand,
+    extract_brand_from_raw,
+)
 from rapidfuzz import fuzz as fuzz_engine
 
 logger = get_logger("crawler")
@@ -147,6 +152,31 @@ def _extract_heat_output(hit: dict[str, Any]) -> str | None:
     return None
 
 
+def _is_plausible_model(model: str) -> bool:
+    """Return True if the model string is a plausible product model.
+
+    Rejects:
+    - Pure numeric / trivial short codes ("10", "AC", "A", "2C")
+    - Composition strings containing ';' or "Paket"/"module"
+    - Model strings that are clearly gas/flue codes or postal codes
+    """
+    if not model or not model.strip():
+        return False
+    model = model.strip()
+    # Trivial 1-2 char codes
+    if len(model) < 3:
+        return False
+    # Pure numerics of any length < 6 (e.g. "10", "2024", "900")
+    if re.match(r"^\d{1,5}$", model):
+        return False
+    # Composition strings
+    if any(m in model.lower() for m in ["paket", "sonnenpaket", "module kit"]):
+        return False
+    if ";" in model:
+        return False
+    return True
+
+
 def _extract_kw(value: Any) -> float | None:
     """Parse a heat-output value (number or "17.2 kW" string) into kW."""
     if value is None:
@@ -173,21 +203,17 @@ def _kw_in_range(detected_kw: float, hit_kw: float) -> bool:
 def _extract_manufacturer_name(hit: dict[str, Any]) -> str:
     """Extract the brand/manufacturer name shown on a nameplate.
 
-    EPREL's `organisation` is the entity that *registered* the product — often an
-    importer or distributor (e.g. "TECNILIMA - EQUIPAMENTOS E SERVICOS LDA"),
-    not the manufacturer. The brand that appears on the nameplate is
-    `supplierOrTrademark` (e.g. "Wertec"), so we prefer it over the registrant.
+    Uses the brand normalizer to map EPREL's inconsistent names (legal
+    entities, registrants, case variants) to canonical brand names.
+
+    EPREL's `organisation` is the entity that *registered* the product — often
+    an importer or distributor. The brand on the nameplate is
+    `supplierOrTrademark`, but EPREL sometimes stores the legal entity there
+    too (e.g. "Viessmann Climate Solutions SE" instead of "Viessmann").
     """
-    trademark = hit.get("supplierOrTrademark")
-    if trademark:
-        return trademark.strip()
-    owner = hit.get("trademarkOwner")
-    if owner:
-        return owner.strip()
-    org = hit.get("organisation", {})
-    title = org.get("organisationTitle") if org else None
-    if title:
-        return title.strip()
+    brand = extract_brand_from_raw(hit)
+    if brand:
+        return brand
     return "Unknown"
 
 
@@ -208,6 +234,12 @@ async def _parse_product_hit(
 
     model = (hit.get("modelIdentifier") or "").strip()
     if not model:
+        return None
+
+    # Reject garbled / composition model strings that would pollute matching:
+    # trivial 1-2 char codes ("A", "AC", "10"), composition strings with ';'
+    # or "Paket", and pure-numeric strings that are really gas/flue codes.
+    if not _is_plausible_model(model):
         return None
 
     manufacturer_name = _extract_manufacturer_name(hit)
