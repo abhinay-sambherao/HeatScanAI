@@ -4,14 +4,30 @@
 > next session starts with full context. Read this FIRST, then `AGENTS.md`.
 > Working repo root: `HeatScanAI/` (backend inside `HeatScanAI/backend/`).
 
-## What got done this session (2 commits, both pushed)
+## What got done this session (3 commits, all pushed)
 
 1. **`d82645a` — Retail enrichment crawl (heizungsdiscount24)** (full crawl →
    match enrichment, chosen by user over on-demand/doc-only/skip).
 2. **`9eded14` — Group EPREL variant duplicates + add match `source`**
    (fixes the exact question the user asked: "why same model multiple times").
+3. **`f6db073` — Serve the frontend from the backend** (`app.main` now mounts
+   `StaticFiles(directory=FRONTEND_DIR, html=True)` at `/`, after all routers).
+   Fixes the "old app.js still showing" issue: previously **both** :8000 and the
+   :5500 Live Server 404'd `/js/app.js`, so the user saw a stale/cached page.
 
 All commits pushed; `origin/main` is in sync. **207 backend tests passing.**
+
+### Static serving — verified (do not reopen unless it regresses)
+- `/`, `/js/app.js`, `/css/style.css` → 200; `/js/app.js` serves the new code
+  (source/variants/retail labels present).
+- API not shadowed by the mount (routers are registered first): `/health`,
+  `/products`, `/manufacturers`, `/crawler/logs`, `/docs`, `/openapi.json` all
+  200 with correct `application/json`.
+- **User open point:** `http://127.0.0.1:8000/` (hard-refresh `Cmd+Shift+R`) —
+  no Live Server / `file://` needed. Server runs `uvicorn app.main:app
+  --host 0.0.0.0 --port 8000 --reload` (PID auto-reloads on file change).
+- Only remaining uncommitted state at handoff: none (LAST check was clean after
+  `f6db073`).
 
 ---
 
@@ -136,10 +152,12 @@ Already applied to the **local dev Postgres** (132,078 rows backfilled = EPREL).
 
 ## Project conventions / budget
 - Static vanilla-JS frontend in separate repo `abhinay-sambherao/HeatScanAI-frontend`
-  (files hardlinked to backend). **No frontend change was made this session** —
-  the API now returns `source`, `variants`, and retail fields; the frontend can
-  optionally render them (the match-type badge should hide/shorten retail cards
-  and show "also available as…" for `variants`). Not yet wired.
+  (symlinked as `HeatScanAI/frontend`, served by the backend). **Frontend wired**
+  (commit `8570205`, pushed): result cards show `source` ("Quelle: EPREL"),
+  `variants` ("Auch erhältlich als: …"), and retail link; i18n added
+  (`source`/`variants_label`/`retail_link` DE+EN); CSS classes
+  `.match-source`/`.match-variants`/`.variants-label`/`.match-retail`. JS syntax
+  validated with node.
 - **Hours budget**: user set a hard cap, initially ~410-412, then approved a bump
   to **414h** for the retail work. HOURS.md total = **414h** (Aug 27 row includes
   retail enrichment + variant grouping + source). Do NOT silently exceed 414 — ask
@@ -152,6 +170,7 @@ Already applied to the **local dev Postgres** (132,078 rows backfilled = EPREL).
 
 ## Repo / commits (HeatScanAI, `main`, all pushed, in sync with origin)
 ```
+f6db073 fix: serve frontend static files from backend (StaticFiles at /) ← this session
 9eded14 fix: group EPREL variant duplicates + add match source   ← this session
 d82645a feat: retail enrichment crawl (heizungsdiscount24) + retail matches  ← this session
 26c9814 fix: reject flue/category codes; extract product designations (Vaillant auroCOMPACT)
@@ -162,12 +181,12 @@ a242222 fix: WPL 18 mid-line TYP: model extraction + heater-only scope guard
 79c1854 feat: brand normalization
 ...earlier...
 ```
-Important uncommitted state: **none** — working tree clean after `9eded14`.
+Important uncommitted state: **none** — working tree clean after `f6db073`.
+(Frontend repo `HeatScanAI-frontend` likewise clean after `8570205`.)
 
 ## Likely next steps (not done yet)
-1. **Frontend**: optionally wire `source`, `variants`, retail fields into
-   `HeatScanAI-frontend` (hardlinked files) — retail card + "also available as…"
-   grouping list. This is the natural next feature.
+1. **User-facing**: open `http://127.0.0.1:8000/` (hard-refresh `Cmd+Shift+R`) —
+   backend now serves the frontend; confirm source/variants/retail render.
 2. **Run the full retail crawl** on deployed system: `POST /crawler/retail?limit=0`
    (~11.6k heating products, ~4 req/s). Requires applying the `products.source`
    migration first on the target DB.
