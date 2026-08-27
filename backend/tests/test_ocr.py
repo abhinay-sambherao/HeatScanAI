@@ -260,6 +260,39 @@ class TestPersistAndMatchReturnsExtractedFields:
         assert result["fuel_type"] == "gas"
         assert result["heat_output"] == "14,4 kW"
 
+    @pytest.mark.asyncio
+    async def test_uses_ocr_year_when_user_year_not_provided(self, db_session):
+        """A year OCR'd from the nameplate must be persisted/returned so the UI
+        doesn't prompt the user unnecessarily."""
+        merged = {
+            "raw_text": "Vaillant ecoTEC\nBaujahr: 2015",
+            "cleaned_text": "Vaillant ecoTEC Baujahr 2015",
+            "confidence": 88.0,
+            "manufacturer": "Vaillant",
+            "model": "ecoTEC",
+            "installation_year": 2015,
+            "per_image": [],
+        }
+        result = await _persist_and_match(db=db_session, merged=merged)
+        assert result["installation_year"] == 2015
+
+    @pytest.mark.asyncio
+    async def test_user_year_overrides_ocr_year(self, db_session):
+        """An explicit user-provided year takes precedence over the OCR one."""
+        merged = {
+            "raw_text": "Vaillant ecoTEC\nBaujahr: 2015",
+            "cleaned_text": "Vaillant ecoTEC Baujahr 2015",
+            "confidence": 88.0,
+            "manufacturer": "Vaillant",
+            "model": "ecoTEC",
+            "installation_year": 2015,
+            "per_image": [],
+        }
+        result = await _persist_and_match(
+            db=db_session, merged=merged, installation_year=2005
+        )
+        assert result["installation_year"] == 2005
+
 
 class TestExtractInstallationYear:
     """Tests for installation year extraction from OCR text."""

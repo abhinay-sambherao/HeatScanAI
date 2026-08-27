@@ -142,6 +142,10 @@ async def _persist_and_match(
     installation_year: Optional[int] = None,
 ) -> dict:
     """Save OCR result to DB, run matching (with fallbacks), persist matches."""
+    # Use a user-provided year, else fall back to the one OCR extracted from the
+    # nameplate (e.g. "Baujahr: 2006"), so we don't prompt unnecessarily.
+    if installation_year is None:
+        installation_year = merged.get("installation_year")
     first_filename = merged.get("per_image", [{}])[0].get("filename", "unknown") if merged.get("per_image") else "unknown"
 
     ocr_result = OCRResult(
