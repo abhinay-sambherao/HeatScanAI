@@ -69,6 +69,16 @@ def create_app() -> FastAPI:
         """Serve the frontend SPA."""
         return FileResponse(str(FRONTEND_DIR / "index.html"))
 
+    # Serve the rest of the static frontend (js/, css/, images/, index.html for
+    # sub-paths) from the same FRONTEND_DIR. Any remaining path (e.g. /js/app.js,
+    # /css/style.css) falls through to these files. Registered after all API
+    # routers so the API endpoints always take precedence.
+    app.mount(
+        "/",
+        StaticFiles(directory=str(FRONTEND_DIR), html=True),
+        name="frontend",
+    )
+
     return app
 
 
