@@ -126,6 +126,14 @@ LEADING_ZERO_CODE_RE = re.compile(r"^[A-Z]0\d{2,4}$")
 # Niederkappel", "CH-9466 Sennwald") pattern-match the generic model rule.
 POSTAL_CODE_RE = re.compile(r"^[A-Za-z]{1,2}-\d{4,5}$")
 
+# Serial / certificate codes printed all-caps and jammed into one token
+# ("1312CO5870", "21142500100156093100005485N5", "074411"). These begin with
+# digits and continue into uppercase letters, or are long pure-digit runs —
+# never a model designation.
+SERIAL_LIKE_TOKEN_RE = re.compile(
+    r"^(\d{2,}[A-Z]{2,}|[0-9A-Z]{9,})$"
+)
+
 # Tokens that end a manufacturer-anchored model phrase (German field headers,
 # legal forms, common connectors). Models are typically Title/ALL-CAPS token
 # runs ending in digits, so these delimiters keep the phrase tight.
@@ -223,6 +231,117 @@ def _extract_model_after_manufacturer(text: str, manufacturer: str | None) -> st
     return phrase
 
 
+def _extract_product_designation(text: str) -> str | None:
+    """Extract a multi-token product designation from OCR text.
+
+    Modern German boiler plates (e.g. Vaillant) print the model as a Title-case
+    product-name run followed by an ALL-CAPS type code and digit-bearing tokens:
+        "auroCOMPACT VSC S 146/4-5 150 Gas-Kompaktgerät"
+    The generic single-token rule would only catch the last fragment
+    ("S 146"). This scans the whole text for such a run — a capitalized
+    product-name leader, an ALL-CAPS type code, ending in a digit token — and
+    preserves the original separators (/ -). Field-label / spec lines
+    ("Code 141 230V 50", "bar PMS PMW 10") never qualify because they lack the
+    product-name-leader + ALL-CAPS-code structure.
+
+    Returns None if no qualifying run is found.
+    """
+    best = None  # (start, end, quality_tuple)
+
+    i = 0
+    n = len(text)
+    while i < n:
+        # Locate start of an alphabetic token. Product names may begin with a
+        # lowercase letter when OCR keeps the brand casing ("auroCOMPACT",
+        # "ecoTEC"), so accept any letter as a potential run start.
+        if not text[i].isalpha():
+            i += 1
+            continue
+        j = i
+        while j < n and text[j].isalnum():
+            j += 1
+        if j - i > 14:
+            i = j
+            continue
+        start = i
+        prev_end = j
+        tokens = [text[i:j]]
+
+        # Extend over separator + next token, while next token is a DENSE
+        # ALL-CAPS code, a digit-bearing token, or — for the very next word —
+        # a short capitalized stub. This lets "auroCOMPACT VSC S 146/4-5 150"
+        # build up, while Title-case descriptor words ("Gas-Kompaktgerät",
+        # "Brennwerttechnik") stop it dead.
+        cursor = j
+        while cursor < n and text[cursor] in " /-.":
+            k = cursor + 1
+            while k < n and text[k].isalnum():
+                k += 1
+            if k >= n or k == cursor + 1:
+                break
+            tok = text[cursor + 1 : k]
+            is_digit_tok = bool(re.match(r"^[0-9][0-9A-Za-z.\-]*$", tok))
+            is_allcaps_code = (
+                tok.isupper() and 2 <= len(tok) <= 6 and tok.isalpha()
+            )
+            is_single_caps = tok.isalpha() and tok.isupper() and len(tok) == 1
+            is_short_stub = len(tokens) == 1 and tok[0].isupper() and len(tok) <= 4
+            if is_digit_tok or is_allcaps_code or is_single_caps:
+                tokens.append(tok)
+                prev_end = k
+                cursor = k
+                continue
+            if is_short_stub:
+                tokens.append(tok)
+                prev_end = k
+                cursor = k
+                continue
+            # Non-model boundary (Title-case prose / descriptor) — stop.
+            break
+
+        end = prev_end
+        run_text = text[start:end]
+        last = tokens[-1]
+        if re.search(r"\d", last) and len(tokens) >= 2:
+            first = tokens[0]
+            # A Title/Camel-case product-name leader ("auroCOMPACT", "Vitodens",
+            # "ecoTEC") must contain at least one uppercase letter, so pure
+            # lowercase unit words ("bar", "mit") can never be a leader.
+            title_leading = first.isalpha() and any(c.isupper() for c in first)
+            has_allcaps_code = any(
+                t.isalpha() and t.isupper() and 2 <= len(t) <= 6 for t in tokens
+            )
+            # A genuine product designation is "auroCOMPACT VSC S 146/4-5 150":
+            # a capitalized product-name leader immediately followed by an
+            # ALL-CAPS type code, ending in a digit. Field-label / spec lines
+            # ("Code 141 230V 50", "bar PMS PMW 10", "Hz 105") never have both,
+            # so they never qualify here.
+            title_followed_by_code = (
+                title_leading and len(tokens) >= 3 and has_allcaps_code
+            )
+            if title_followed_by_code:
+                digit_content = len(re.findall(r"\d", run_text))
+                if not any(
+                    GAS_CODE_RE.match(t) or POSTAL_CODE_RE.match(t)
+                    or LEADING_ZERO_CODE_RE.match(t)
+                    or SERIAL_LIKE_TOKEN_RE.match(t)
+                    for t in tokens
+                ):
+                    quality = (digit_content, -start)  # more digits, earlier wins
+                    if best is None or quality > best[2]:
+                        best = (start, end, quality)
+        i = cursor if cursor > end else end
+
+    if best is None:
+        return None
+    result = text[best[0] : best[1]].strip(" /-.,;:")
+    if len(result) > 40 or len(result) < 3:
+        return None
+    return result
+
+
+
+
 def _clean_model_candidate(candidate: str) -> str | None:
     """Trim noise that OCR merges onto the end of a labeled model.
 
@@ -247,10 +366,33 @@ def extract_model(text: str) -> str | None:
         match = pattern.search(text)
         if match:
             candidate = _clean_model_candidate(match.group(1))
-            if candidate and len(candidate) <= 40:
-                return candidate
+            if not candidate or len(candidate) > 40:
+                continue
+            # Reject label values that are actually flue/category codes, gas
+            # groups, postcodes or OCR garble — not models. Every modern gas
+            # boiler nameplate prints "Type : C13x, C33x, C43x ..." for its
+            # flue-system categories; without this guard that line hijacks the
+            # model (e.g. Vaillant auroCOMPACT plate → "C13x").
+            if (
+                GAS_CODE_RE.match(candidate)
+                or LEADING_ZERO_CODE_RE.match(candidate)
+                or POSTAL_CODE_RE.match(candidate)
+                or re.search(r"(?:^|\s)0\d{3,}(?=\s|$)", candidate)
+            ):
+                continue
+            return candidate
 
     # Second pass: the model often directly follows the manufacturer name
+    # Pass 2.5: multi-token product designation (e.g. "auroCOMPACT VSC S
+    # 146/4-5 150"). Runs before the manufacturer-anchored pass because it
+    # preserves dash/slash type codes ("146/4-5") the anchored tokenizer
+    # drops. It only fires on a Title-case product-name leader followed by an
+    # ALL-CAPS type code, so it never matches all-caps models like "WPL 18"
+    # (those still fall through to the anchored pass).
+    designation = _extract_product_designation(text)
+    if designation:
+        return designation
+
     manufacturer = extract_manufacturer(text)
     anchored = _extract_model_after_manufacturer(text, manufacturer)
     if anchored:

@@ -150,6 +150,25 @@ class TestExtractModel:
         text = "II2H3P G20 20 G31 37 C13(X) C33X -C43(X)C53(X) C83X C930"
         assert extract_model(text) is None
 
+    def test_vaillant_aurocompact_full_plate(self):
+        # Real Vaillant auroCOMPACT nameplate: "Type : C13x ..." is a flue
+        # category line, NOT the model; the model is the Title-led product
+        # designation printed right after the manufacturer.
+        text = ("Vaillant Vaillant GmbH Remscheid/Germany Serial-Nr. "
+                "21142500100156093100005485N5 auroCOMPACT VSC S 146/4-5 150 "
+                "Gas-Kompaktgerät mit Brennwerttechnik DE, Kat. II2ELL3P, "
+                "2E - G20 - 20 mbar (2,0 kPa) 00 Type : C13x, C33x, C43x, "
+                "C53x, C83x, B23P, B33P, B53P Qn = 14,3 kW (Hi) Code = 141 "
+                "230V ~ 50 Hz 105 W IPX4D (DE) CE DVQW CCAT 1015 14 "
+                "1312CO5870 auroCOMPACT VSC S 146/4-5 150")
+        assert extract_model(text) == "auroCOMPACT VSC S 146/4-5 150"
+
+    def test_vaillant_flue_category_not_the_model(self):
+        # Even if the flue 'Type : C13x' line appears, it must not win over
+        # the real designation.
+        text = "Vaillant auroCOMPACT VSC S 146/4-5 100 Type : C13x, C33x"
+        assert extract_model(text) == "auroCOMPACT VSC S 146/4-5 100"
+
 
 class TestExtractEnergyClass:
     def test_finds_class_a(self):

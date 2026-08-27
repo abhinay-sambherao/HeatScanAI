@@ -2,7 +2,7 @@
 
 ## HeatScan AI — Backend
 
-**Total Hours: 410 hours**
+**Total Hours: 412 hours**
 **Duration: July 15 – August 21, 2026 (38 days, excl. exams Jul 23–25)**
 **Developer: Abhinay Sambherao**
 **Project Estimate: 285 hours (143% complete)**
@@ -199,7 +199,8 @@
 | Aug 23–25 | — | 406h | Break / client review |
 | Aug 26 (Wed) | 2h | 408h | Brand normalization map + migration applied live (11,624 reassignments), crawler filters, 27 tests → 165 passing, push `79c1854`, docs/HOURS/WORK_PROGRESS reconciliation |
 | Aug 27 (Thu) | 2h | 410h | WPL 18 live-scan parser fix: mid-line all-caps `TYP:WPL 18` two-part model code now extracted (was false `W 35 11` from COP table); heater-only scope guard (`HEATING_ONLY_GROUP_SLUGS` in crawler + `HEATING_ONLY_CATEGORIES` matching filter) so pure AC/cooling units never appear (reversible units that heat stay); `category` exposed in matches; 5 regression tests → 184 passing |
-| **Total** | **410h** | | **144% of 285h estimate** |
+| Aug 27 (Thu) | 2h | 412h | Vaillant auroCOMPACT scan fix: "Type : C13x…" flue line no longer hijacks the model (flue/cert/serial-code filters); new product-designation pass extracts Title-led + ALL-CAPS type-code models ("auroCOMPACT VSC S 146/4-5 150" instead of "C13x"), preserving dash/slash; exact EPREL matches now found; 2 regression tests → 186 passing |
+| **Total** | **412h** | | **145% of 285h estimate** |
 
 ---
 
@@ -216,7 +217,7 @@ Compared with the original proposal, the implementation expanded to include:
 - Cloud deployment and mobile compatibility
 - Production hardening and regression testing
 
-These additions account for the increase from the original 285-hour estimate to 408 logged hours.
+These additions account for the increase from the original 285-hour estimate to 412 logged hours.
 
 ## Key Decisions & Trade-offs
 

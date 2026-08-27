@@ -58,6 +58,30 @@ cooling-only units (EPREL's `airconditioners` family) are excluded by two layers
 > are model-variant codes on Stiebel air-source heat pumps (**W**ärmepumpe **L**uft),
 > *not* air conditioners. They are heating systems and correctly matchable.
 
+### Flue/category codes & product-designation extraction (`parser.py`)
+
+Every modern gas boiler nameplate prints a line like `Type : C13x, C33x, C43x …`
+for its flue-system categories, and a `CE … 1312CO5870` / `Serial-Nr. …` block.
+These are **not** models, but the `Typ:` label matcher used to capture `C13x` and
+return it as the model (real Vaillant auroCOMPACT scan → `C13x`).
+
+Fixes (all in `extract_model`, `parser.py`):
+1. **Flue/cert/serial filtering** — labelled captures that are gas/flue category
+   codes (`C13x`), cert/serial tokens (`1312CO5870`, `21142500100156093100005485N5`)
+   and leading-zero OCR garble are rejected, so they never win.
+2. **Product-designation pass** (`_extract_product_designation`) — extracts the
+   real multi-token model printed after the brand ("auroCOMPACT VSC S 146/4-5 150"),
+   requiring a Title-case product-name leader + ALL-CAPS type code + digit ending.
+   This only fires on that distinctive pattern, so all-caps models like `WPL 18`
+   still route through the existing anchored pass unchanged. Dash/slash type codes
+   are preserved (`146/4-5`).
+
+Result for the real Vaillant scan: `C13x` → **`auroCOMPACT VSC S 146/4-5 150`**,
+which matches exact EPREL entries (`auroCOMPACT VSC S 146/4-5 150/190`) instead of
+the unrelated VRC thermostats that previously showed up as "attribute-based" hits.
+
+
+
 
 ---
 
