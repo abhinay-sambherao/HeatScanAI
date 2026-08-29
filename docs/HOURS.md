@@ -2,10 +2,11 @@
 
 ## HeatScan AI — Backend
 
-**Total Hours: 414 hours**
-**Duration: July 15 – August 21, 2026 (38 days, excl. exams Jul 23–25)**
+**July–August total: 417 hours** (duration Jul 15 – Aug 31, 2026)
+**September cap: 80 hours incl. meetings** (see `PLAN_SEPTEMBER.md` — separate bucket)
+**Duration: July 15 – August 31, 2026 (48 days, excl. exams Jul 23–25)**
 **Developer: Abhinay Sambherao**
-**Project Estimate: 285 hours (143% complete)**
+**Project Estimate: 285 hours (146% complete, Jul–Aug phase)**
 
 ---
 
@@ -111,6 +112,9 @@
 | 80  | Demo prep & parser chimney sweep fixes               | 1     | Aug 21        | Full demo readiness check (125/125 tests, frontend/backend review, API route verification), conference demo reply email draft. Frontend fix: edit cancel/save no longer navigates to main page (`cancelEdit()` re-renders from `_lastScanData`, `saveEdit()` collects edited values and re-renders). Backend parser fixes: chimney sweep report false positives — model extraction stops at year tokens (2006) and power values (kW), energy class rejects °C temperature units, removed `re.IGNORECASE`. Year extraction feature plan drafted                                                                                                                                  |
 | 81  | Installation year extraction feature                  | 2     | Aug 22        | `extract_installation_year()` in parser (Baujahr/Errichtung/Herstelldatum labels, MM/YYYY dates, standalone years); `find_matches()` takes `installation_year` + P2 filter (skips EPREL products released >2y after nameplate year); pipeline returns year + merge across multi-image; `POST /ocr/{id}/rematch` + `update_installation_year()`; frontend inline year prompt (submit/skip) + i18n (DE/EN) + CSS. +13 tests. Commits `35c0dce` / `edf6663` / `9fd51f3`                                                                                                |
 | 82  | Brand normalization & data quality                    | 2     | Aug 26        | Legal-entity→canonical brand map (`brand_normalizer.py`: Viessmann, KWB, KOSPEL, Mitsubishi Electric, Dražice, Fröling, Aisin, Glen Dimplex, LG, AWB + case variants); `is_valid_brand()`/`extract_brand_from_raw()` reject trivial codes (>60-char legal entities, composition/paket strings); integration into crawler `_extract_manufacturer_name()` + crawl-time `_is_plausible_model()` filter; `scripts/normalize_brands.py` migration (applied live: 11,624 reassignments, 0 garbled, 0 WEB-). DB 132,078 products / 2,528 manufacturers. +27 tests → 165 passing. Commit `79c1854`                                                                                                                                          |
+| 83  | Retail enrichment + variant grouping + match source    | 2     | Aug 27        | heizungsdiscount24 full crawl → match enrichment (`RetailProduct`/`retail_products`, `retail_crawler.py`, `/sitemaps/` corrected paths, ISO-8859-1, JSON-LD, heating-only + `klimaanlagen` excluded, 11,614 heating products); `find_retail_matches()` additive (brand≥60 + model≥65, `match_type:"retail"`, null product_id); `_variant_key`/`_dedup_variants` collapse EPREL near-duplicates into one card (slash-code-guarded); `products.source` column (`EPREL`/`EPREL API`/`Manufacturer website`, migration applied locally) + `OCRMatchResult.source`/`variants`. `POST /crawler/retail`. +22 tests → 207 passing. Commits `d82645a` / `9eded14` / `393dfc8` + frontend `8570205` |
+| 84  | Backend serves frontend static files                   | 2     | Aug 28        | `StaticFiles(directory=FRONTEND_DIR, html=True)` mounted at `/` in `app/main.py` (after all routers) → `http://127.0.0.1:8000/` serves app + JS/CSS; fixes stale-frontend (both :8000 and :5500 previously 404'd `/js/app.js`). Verified static 200 + API not shadowed (JSON correct). Commit `f6db073` |
+| 85  | September plan & handoff docs                          | 1     | Aug 29        | `docs/PLAN_SEPTEMBER.md` (80 h incl. meetings, M0–M8, 8 meetings, 12 risks, DoD); SESSION_HANDOFF.md refreshed for static-serving + frontend wiring. Commit `2ceea4a`. Aug rows logged to month end |
 
 ---
 
@@ -201,7 +205,18 @@
 | Aug 27 (Thu) | 2h | 410h | WPL 18 live-scan parser fix: mid-line all-caps `TYP:WPL 18` two-part model code now extracted (was false `W 35 11` from COP table); heater-only scope guard (`HEATING_ONLY_GROUP_SLUGS` in crawler + `HEATING_ONLY_CATEGORIES` matching filter) so pure AC/cooling units never appear (reversible units that heat stay); `category` exposed in matches; 5 regression tests → 184 passing |
 | Aug 27 (Thu) | 2h | 412h | Vaillant auroCOMPACT scan fix: "Type : C13x…" flue line no longer hijacks the model (flue/cert/serial-code filters); new product-designation pass extracts Title-led + ALL-CAPS type-code models ("auroCOMPACT VSC S 146/4-5 150" instead of "C13x"), preserving dash/slash; exact EPREL matches now found; 2 regression tests → 186 passing |
 | Aug 27 (Thu) | 2h | 414h | Retail enrichment (heizungsdiscount24 full crawl → match enrichment): `RetailProduct` model (`retail_products` table, auto-created via create_all — no migration); `retail_crawler.py` (sitemap walk via corrected `/sitemaps/` paths, ISO-8859-1 decode, JSON-LD Product extraction, heating-category filter, `klimaanlagen` excluded, brand normalize, model-from-title with mpn fallback; live-verified 11,614 heating products); `find_retail_matches()` additive enrichment (brand+model thresholds, `match_type: "retail"`, null product_id, URL/price); surfaced in OCR + rematch responses; `POST /crawler/retail` endpoint; docs + 14 tests. **Variant grouping + match source:** `_variant_key`/`_dedup_variants` collapse EPREL near-duplicate registrations (S/D config, `(E-DE)/(LL-DE)` gas type, 150/190 version) into one card with `variants` listed — slash-code-guarded so `WPL 18`≠`WPL 21`; new `products.source` column (`EPREL`/`EPREL API`/`Manufacturer website`, migration `ALTER TABLE …` applied locally) surfaced in every match; `OCRMatchResult.source`/`variants` in schema. +8 tests → 200→207 passing |
-| **Total** | **414h** | | **145% of 285h estimate** |
+| Aug 28 (Fri) | 2h | 416h | **Backend serves the frontend directly** — `StaticFiles(directory=FRONTEND_DIR, html=True)` mounted at `/` in `app/main.py` (after all routers) so `http://127.0.0.1:8000/` serves the app and `/js/app.js`/`/css/style.css`; fixes the stale-frontend issue (both :8000 and the :5500 Live Server previously 404'd `/js/app.js`). Verified: static files 200 with the new source/variant/retail code; API not shadowed (`/products`, `/manufacturers`, `/crawler/logs`, `/docs` return proper JSON). Commit `f6db073` |
+| Aug 29 (Sat) | 1h | 417h | **September plan + handoff maintenance** — `docs/PLAN_SEPTEMBER.md` (80 h cap incl. meetings, 9 milestones M0–M8, 8 meetings, 12 risks, DoD); updated `SESSION_HANDOFF.md` for static-serving + frontend wiring; logged Aug rows to end of month |
+| Aug 30 (Sun) | 0h | 417h | Weekend / no work |
+| Aug 31 (Mon) | 0h | 417h | **End of July–August phase.** Lifetime total **417 h** (July 15 – Aug 31). September is tracked separately (see below) |
+| **Total** | **417h** | | **146% of 285h estimate (Jul–Aug)** |
+
+> **September 2026 (separate bucket).** Per the client (Anika, 2026-08-28) the
+> September work — Package-1 finalization (image dataset + AWS test env, see
+> `PLAN_SEPTEMBER.md`) — is tracked **separately** from the Jul–Aug 417 h above,
+> under its own **max 80 h (incl. meetings)** cap. Do NOT add September hours to
+> the 417 h figure; keep them in a dedicated September section and never exceed
+> 80 h without asking.
 
 ---
 
