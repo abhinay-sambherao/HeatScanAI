@@ -3,7 +3,7 @@
 ## HeatScan AI — Backend
 
 **July–August total: 417 hours** (duration Jul 15 – Aug 31, 2026)
-**September cap: 80 hours incl. meetings** (see `PLAN_SEPTEMBER.md` — separate bucket)
+**September cap: 20 h/week = 80 h incl. meetings** (see `PLAN_SEPTEMBER.md` — separate bucket)
 **Duration: July 15 – August 31, 2026 (48 days, excl. exams Jul 23–25)**
 **Developer: Abhinay Sambherao**
 **Project Estimate: 285 hours (146% complete, Jul–Aug phase)**
@@ -214,9 +214,9 @@
 > **September 2026 (separate bucket).** Per the client (Anika, 2026-08-28) the
 > September work — Package-1 finalization (image dataset + AWS test env, see
 > `PLAN_SEPTEMBER.md`) — is tracked **separately** from the Jul–Aug 417 h above,
-> under its own **max 80 h (incl. meetings)** cap. Do NOT add September hours to
-> the 417 h figure; keep them in a dedicated September section and never exceed
-> 80 h without asking.
+> under its own **max 20 h/week = 80 h (incl. meetings)** cap. Do NOT add
+> September hours to the 417 h figure; keep them in a dedicated September section
+> and never exceed 20 h/week or 80 h/month without asking.
 
 ---
 

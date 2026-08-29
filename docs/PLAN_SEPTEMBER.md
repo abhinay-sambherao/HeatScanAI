@@ -1,15 +1,15 @@
 # September Plan 2026 — Heizungscheck (HeatScan AI)
 
 **Period:** September 1–30, 2026
-**Hour cap:** **80 h total incl. all meetings** (hard cap — do not exceed)
+**Hour cap:** **20 hours/week incl. all meetings** (= **80 h total** for 4 weeks, hard cap — do not exceed)
 **Basis:** Anika Fuchs (client) task list of 2026-08-28 — finalize/open points
 from Package 1 + implementation in AWS test environment + documentation.
 **Developer:** Abhinay Sambherao
 
-> Related docs: `HOURS.md` (July–Aug lifetime = 414 h, a SEPARATE figure to the
+> Related docs: `HOURS.md` (July–Aug lifetime = 417 h, a SEPARATE figure to the
 > 80 h September cap), `PENDING_ITEMS.md`, `DEPLOYMENT_AWS.md`, `API.md`,
 > `AGENTS.md`. This is the work plan; hours are logged into `HOURS.md` under the
-> September bucket (not into the 414 h figure).
+> September bucket (not into the 417 h figure).
 
 ---
 
@@ -34,43 +34,53 @@ AWS test-environment *deployment* (doc exists, env not stood up).
 
 ---
 
-## 2. Milestones & schedule
+## 2. Milestones & weekly schedule
 
-All durations **include meetings**; meeting hours are called out separately per
-milestone so scope vs. overhead stays visible.
+**Each week is capped at 20 h (incl. meetings).** Milestones below are assigned to
+weeks; meeting hours are called out separately so scope vs. overhead stays
+visible.
 
-| # | Milestone | Dates | Work h | Mtg h | Total | Deliverable |
-|---|-----------|-------|--------|-------|-------|-------------|
-| M0 | Kickoff & scope lock | Sep 1–3 | 2 | 2 | 4 | Confirmed scope, this plan approved, DB migration applied |
-| M1 | EPREL crawler finalization | Sep 4–8 | 7 | 1 | 8 | All-category crawl verified, edge-case fixes in |
-| M2 | Data validation & QA hardening | Sep 8–10 | 7 | 1 | 8 | QA report; brand/model QC across full DB |
-| M3 | Image dataset feasibility + collection | Sep 11–16 | 11 | 1 | 12 | Feasibility doc + curated nameplate dataset |
-| M4 | OCR pipeline optimization | Sep 16–18 | 7 | 1 | 8 | Accuracy/regression report, Eval metric |
-| M5 | Matching & search logic | Sep 21–22 | 8 | 0 | 8 | Tuned thresholds, edge cases covered |
-| M6 | Testing, evaluation & optimization | Sep 23–24 | 9 | 1 | 10 | Full test suite + eval results + fixes |
-| M7 | Documentation & final delivery | Sep 25–26 | 6 | 0 | 6 | Client-ready docs + handoff |
-| M8 | AWS test environment + docs | Sep 28–30 | 8 | 2 | 10 | Running AWS test env + deployed guide |
+| Week | Dates | Milestones | Work h | Mtg h | Weekly total | Deliverables |
+|------|-------|-----------|--------|-------|--------------|--------------|
+| W1 | Sep 1–5 (Tue–Sat) | M0 Kickoff & scope lock · M1 EPREL crawler finalization | 17 | 3 | **20** | Confirmed scope, migrations applied, all-category crawl verified |
+| W2 | Sep 7–12 (Mon–Sat) | M2 Data validation & QA · M3 image dataset feasibility | 18 | 2 | **20** | QA report; feasibility doc + dataset ingestion plan |
+| W3 | Sep 14–19 (Mon–Sat) | M3 image dataset collection · M4 OCR optimization · M5 matching | 19 | 1 | **20** | Curated nameplate eval dataset; OCR + matching eval |
+| W4 | Sep 21–30 (Mon–Wed) | M6 Testing/eval · M7 Documentation & delivery · M8 AWS test env | 15 | 5 | **20** | Green suite, client-ready docs, running AWS test env, delivery |
+
+**Milestone ↔ week mapping (detail in §4):**
+
+| # | Milestone | Week | Work h | Mtg h | Total | Deliverable |
+|---|-----------|------|--------|-------|-------|-------------|
+| M0 | Kickoff & scope lock | W1 | 2 | 2 | 4 | Confirmed scope, this plan approved, DB migration applied |
+| M1 | EPREL crawler finalization | W1 | 7 | 1 | 8 | All-category crawl verified, edge-case fixes in |
+| M2 | Data validation & QA hardening | W2 | 7 | 1 | 8 | QA report; brand/model QC across full DB |
+| M3 | Image dataset feasibility + collection | W2–W3 | 11 | 1 | 12 | Feasibility doc + curated nameplate dataset |
+| M4 | OCR pipeline optimization | W3 | 7 | 1 | 8 | Accuracy/regression report, Eval metric |
+| M5 | Matching & search logic | W3 | 8 | 0 | 8 | Tuned thresholds, edge cases covered |
+| M6 | Testing, evaluation & optimization | W4 | 9 | 1 | 10 | Full test suite + eval results + fixes |
+| M7 | Documentation & final delivery | W4 | 6 | 0 | 6 | Client-ready docs + handoff |
+| M8 | AWS test environment + docs | W4 | 8 | 2 | 10 | Running AWS test env + deployed guide |
 | — | **Buffer / slippage** | throughout | — | — | 6 | Reallocation pool across M1–M8 |
 | — | **TOTAL** | | **65** | **9** | **80** | |
 
 > **Buffer note:** 6 h kept in reserve for day-1 surprises or meeting
-> overruns. If it is consumed and the 80 h cap is at risk, we **stop and ask**
-> before adding hours (consistent with Aug practice).
+> overruns. If it is consumed and the 20 h/week cap is at risk, we **stop and
+> ask** before adding hours (consistent with Aug practice).
 
 ---
 
-## 3. Meeting plan (9 h total)
+## 3. Meeting plan (9 h total, ~2 h/week)
 
 | # | Meeting | When | Length | Attendees | Purpose |
 |---|---------|------|--------|-----------|---------|
-| 1 | Kickoff with Anika | Sep 2 | 1 h | Anika + me | Lock scope for the month, confirm open gaps (image dataset, AWS) |
-| 2 | Internal design check | Sep 7 | 0.5 h | Me | Crawler finalization review |
-| 3 | Data/QA checkpoint | Sep 9 | 0.5 h | Anika + me | Validate QA approach + criteria sign-off |
-| 4 | Internal dataset review | Sep 12 | 0.5 h | Me | Image dataset feasibility decisions |
-| 5 | Progress sync | Sep 17 | 0.5 h | Anika + me | Mid-month status, buffer decisions |
-| 6 | Internal eval review | Sep 23 | 0.5 h | Me | Evaluation results vs. open gaps |
-| 7 | Final delivery review | Sep 26 | 1 h | Anika + me | Walk through docs + demo readiness |
-| 8 | Demo / delivery | Sep 30 | 1 h | Anika + team | Final delivery + AWS test env walkthrough |
+| 1 | Kickoff with Anika | Sep 2 (W1) | 1 h | Anika + me | Lock scope for the month, confirm open gaps (image dataset, AWS) |
+| 2 | Internal design check | Sep 7 (W2) | 0.5 h | Me | Crawler finalization review |
+| 3 | Data/QA checkpoint | Sep 9 (W2) | 0.5 h | Anika + me | Validate QA approach + criteria sign-off |
+| 4 | Internal dataset review | Sep 12 (W2) | 0.5 h | Me | Image dataset feasibility decisions |
+| 5 | Progress sync | Sep 17 (W3) | 0.5 h | Anika + me | Mid-month status, buffer decisions |
+| 6 | Internal eval review | Sep 23 (W4) | 0.5 h | Me | Evaluation results vs. open gaps |
+| 7 | Final delivery review | Sep 26 (W4) | 1 h | Anika + me | Walk through docs + demo readiness |
+| 8 | Demo / delivery | Sep 30 (W4) | 1 h | Anika + team | Final delivery + AWS test env walkthrough |
 | — | Ad-hoc clarifications (email/chat) | throughout | ~2 h | Anika + me | Short clarifications, not counted as formal meetings |
 
 ---
@@ -78,7 +88,7 @@ milestone so scope vs. overhead stays visible.
 ## 4. Detailed task breakdown
 
 ### M0 — Kickoff & scope lock (4 h)
-- Confirm September scope with Anika; agree the 80 h cap and the two open gaps.
+- Confirm September scope with Anika; agree the 20 h/week (80 h month) cap and the two open gaps.
 - Re-read `PENDING_ITEMS.md`; re-confirm each item's status.
 - **Apply `products.source` DB migration on the target (test) DB**:
   ```sql
@@ -154,12 +164,12 @@ milestone so scope vs. overhead stays visible.
 | 3 | **AWS cost / account access** — no AWS access or cost ceiling | Med | High | Request access + budget early in M0; use free/trial tier; RDS `db.t3.micro`, single AZ |
 | 4 | **AWS environment instability** — tunnel/CDN vs direct IP, security groups block 5432 | Med | Med | Follow `DEPLOYMENT_AWS.md`; test from EC2 first, then externally; document every open port |
 | 5 | **DB migration not applied** on a deployment → `products.source` / retail queries fail | High (on any un-migrated DB) | Med | Apply SQL in M0 and M8; add a startup/CI check that logs a warning if the column is missing |
-| 6 | **Meeting overruns eat the 80 h cap** | Med | Med | Meetings capped to the 9 h above; ad-hoc clarifications via email; use the buffer before adding hours |
+| 6 | **Meeting overruns eat the 20 h/week cap** | Med | Med | Meetings capped to the 9 h above; ad-hoc clarifications via email; use the buffer before adding hours |
 | 7 | **OCR accuracy floor on real photos** — new plates fail (blur, glare, perspective) | Med | Med | Extend multi-variant OCR; collect failures into the metric; honest "no match" over wrong guess |
 | 8 | **Retail crawl rate/site changes** — heizungsdiscount24 sitemap/charset/schema changes | Low | Low | Crawler is additive; keep `_extract_model`/JSON-LD parsing resilient; re-run smoke test |
 | 9 | **EPREL export format drift** — daily scheduler pulls a changed schema | Low | Med | Idempotent upsert + per-group commit; validate X rows/group; 0-dup assertion in QA |
 | 10 | **Deadline slip** if gaps (image dataset, AWS) prove larger than planned | Med | Medium-High | Front-load both; use 6 h buffer; report scope risk at mid-month sync (Sep 17) |
-| 11 | **Hours bookkeeping confusion** — 414 h (Jul–Aug) vs 80 h (Sep) mixed up | Low | Low | Separate September bucket in `HOURS.md`; explicit "do not exceed 80" note |
+| 11 | **Hours bookkeeping confusion** — 417 h (Jul–Aug) vs 20 h/wk (Sep) mixed up | Low | Low | Separate September bucket in `HOURS.md`; explicit "do not exceed 20 h/week, 80 h/month" note |
 | 12 | **Frontend stale-cache** feedback loop reappears | Low | Low | Serve via backend at `:8000`; hard-refresh instructions; verify `/js/app.js` |
 
 ---
@@ -175,7 +185,7 @@ milestone so scope vs. overhead stays visible.
 4. Full backend test suite green (≥ 207) with new tests covering September
    changes; evaluation report generated.
 5. Documentation consolidated and delivery meeting held.
-6. **Total September hours ≤ 80** (recorded in the separate September bucket).
+6. **September hours ≤ 20/week and ≤ 80/month** (recorded in the separate September bucket).
 
 ---
 
@@ -184,7 +194,7 @@ milestone so scope vs. overhead stays visible.
 - Work effort: **65 h**
 - Meetings: **9 h**
 - Reserve/buffer: **6 h**
-- **Total: 80 h** (hard cap; confirm before exceeding)
+- **Total: 80 h** = **4 weeks × 20 h/week** (hard cap; confirm before exceeding)
 
 > Methodology per `HOURS.md`: hours reflect actual engineering time
 > (implementation, debugging, research, tests, docs, deployment meetings).
