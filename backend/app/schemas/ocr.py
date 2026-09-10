@@ -28,6 +28,8 @@ class OCRMatchResult(BaseModel):
     retail_price: Optional[float] = None
     retail_currency: Optional[str] = None
     retail_source: Optional[str] = None
+    eprel_id: Optional[str] = None
+    eprel_url: Optional[str] = None
     energy_class: Optional[str] = None
     fuel_type: Optional[str] = None
     heat_output: Optional[str] = None
@@ -70,7 +72,20 @@ class OCRResponse(BaseModel):
     postal_code: Optional[str] = None
     city: Optional[str] = None
     installation_year: Optional[int] = Field(default=None, ge=1980, le=2030)
+    extracted_installation_year: Optional[int] = Field(default=None, ge=1980, le=2030)
+    year_prompt_needed: bool = False
+    match_search_status: str = "complete"
     created_at: datetime
+
+
+class OCRMatchesResponse(BaseModel):
+    """Poll endpoint while background EPREL/manufacturer search runs."""
+
+    ocr_result_id: uuid.UUID
+    installation_year: Optional[int] = Field(default=None, ge=1980, le=2030)
+    extracted_installation_year: Optional[int] = Field(default=None, ge=1980, le=2030)
+    match_search_status: str
+    matches: List[OCRMatchResult] = []
 
 
 class OCRRequest(BaseModel):
@@ -95,4 +110,7 @@ class RematchResponse(BaseModel):
 
     ocr_result_id: uuid.UUID
     installation_year: int
+    extracted_installation_year: Optional[int] = Field(default=None, ge=1980, le=2030)
+    year_prompt_needed: bool = False
+    match_search_status: str = "complete"
     matches: List[OCRMatchResult]

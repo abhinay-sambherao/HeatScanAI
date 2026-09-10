@@ -27,6 +27,11 @@ class OCRResult(Base):
     postal_code: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     city: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     installation_year: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # "running" while EPREL/manufacturer fallbacks execute in the background (no year yet);
+    # "complete" when the full matching chain has finished.
+    match_search_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="complete"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     matches: Mapped[list["Match"]] = relationship("Match", back_populates="ocr_result")

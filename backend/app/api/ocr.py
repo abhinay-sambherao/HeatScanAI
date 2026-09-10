@@ -8,8 +8,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.config import settings
-from app.schemas.ocr import OCRResponse, OCRMatchResult, ImageResult, RematchRequest, RematchResponse
-from app.services.ocr_service import process_upload, process_multiple_uploads, update_installation_year
+from app.schemas.ocr import (
+    OCRResponse,
+    OCRMatchResult,
+    VariantResult,
+    ImageResult,
+    RematchRequest,
+    RematchResponse,
+    OCRMatchesResponse,
+)
+from app.services.ocr_service import (
+    process_upload,
+    process_multiple_uploads,
+    update_installation_year,
+    get_ocr_matches,
+)
 from app.core.exceptions import InvalidFileError
 
 router = APIRouter(prefix="/ocr", tags=["OCR"])
@@ -27,6 +40,38 @@ def _validate_file(file: UploadFile) -> None:
         raise InvalidFileError(
             f"Invalid file type '{ext}'. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
         )
+
+
+def _match_to_schema(m: dict) -> OCRMatchResult:
+    """Map a matching-service dict to the public OCRMatchResult schema."""
+    variants = None
+    if m.get("variants"):
+        variants = [VariantResult(**v) for v in m["variants"]]
+    return OCRMatchResult(
+        product_id=m.get("product_id"),
+        manufacturer=m["manufacturer"],
+        model=m["model"],
+        name=m.get("name"),
+        source=m.get("source"),
+        variants=variants,
+        retail_url=m.get("retail_url"),
+        retail_price=m.get("retail_price"),
+        retail_currency=m.get("retail_currency"),
+        retail_source=m.get("retail_source"),
+        eprel_id=m.get("eprel_id"),
+        eprel_url=m.get("eprel_url"),
+        energy_class=m.get("energy_class"),
+        fuel_type=m.get("fuel_type"),
+        heat_output=m.get("heat_output"),
+        score=m["score"],
+        match_type=m.get("match_type"),
+        matched_attributes=m.get("matched_attributes"),
+        reason=m.get("reason"),
+    )
+
+
+def _matches_to_schema(matches: List[dict]) -> List[OCRMatchResult]:
+    return [_match_to_schema(m) for m in matches]
 
 
 @router.post("", response_model=OCRResponse)
@@ -126,22 +171,6 @@ async def upload_and_analyze(
             for img in result.get("per_image", [])
         ]
 
-    match_results = [
-        OCRMatchResult(
-            product_id=m["product_id"],
-            manufacturer=m["manufacturer"],
-            model=m["model"],
-            energy_class=m.get("energy_class"),
-            fuel_type=m.get("fuel_type"),
-            heat_output=m.get("heat_output"),
-            score=m["score"],
-            match_type=m.get("match_type"),
-            matched_attributes=m.get("matched_attributes"),
-            reason=m.get("reason"),
-        )
-        for m in result["matches"]
-    ]
-
     return OCRResponse(
         ocr_result_id=result["ocr_result_id"],
         manufacturer=result["manufacturer"],
@@ -152,7 +181,7 @@ async def upload_and_analyze(
         confidence=result["confidence"],
         raw_text=result["raw_text"],
         cleaned_text=result["cleaned_text"],
-        matches=match_results,
+        matches=_matches_to_schema(result["matches"]),
         images=image_results,
         latitude=result.get("latitude"),
         longitude=result.get("longitude"),
@@ -160,7 +189,32 @@ async def upload_and_analyze(
         postal_code=result.get("postal_code"),
         city=result.get("city"),
         installation_year=result.get("installation_year"),
+        extracted_installation_year=result.get("extracted_installation_year"),
+        year_prompt_needed=result.get("year_prompt_needed", False),
+        match_search_status=result.get("match_search_status", "complete"),
         created_at=result["created_at"],
+    )
+
+
+@router.get("/{ocr_result_id}/matches", response_model=OCRMatchesResponse)
+async def poll_matches(
+    ocr_result_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> OCRMatchesResponse:
+    """Poll for updated matches while background EPREL/manufacturer search runs."""
+    try:
+        result = await get_ocr_matches(db=db, ocr_result_id=ocr_result_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to load matches: {exc}") from exc
+
+    return OCRMatchesResponse(
+        ocr_result_id=result["ocr_result_id"],
+        installation_year=result.get("installation_year"),
+        extracted_installation_year=result.get("extracted_installation_year"),
+        match_search_status=result["match_search_status"],
+        matches=_matches_to_schema(result["matches"]),
     )
 
 
@@ -186,24 +240,11 @@ async def rematch_with_year(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Rematch failed: {exc}") from exc
 
-    match_results = [
-        OCRMatchResult(
-            product_id=m["product_id"],
-            manufacturer=m["manufacturer"],
-            model=m["model"],
-            energy_class=m.get("energy_class"),
-            fuel_type=m.get("fuel_type"),
-            heat_output=m.get("heat_output"),
-            score=m["score"],
-            match_type=m.get("match_type"),
-            matched_attributes=m.get("matched_attributes"),
-            reason=m.get("reason"),
-        )
-        for m in result["matches"]
-    ]
-
     return RematchResponse(
         ocr_result_id=result["ocr_result_id"],
         installation_year=result["installation_year"],
-        matches=match_results,
+        extracted_installation_year=result.get("extracted_installation_year"),
+        year_prompt_needed=result.get("year_prompt_needed", False),
+        match_search_status=result.get("match_search_status", "complete"),
+        matches=_matches_to_schema(result["matches"]),
     )

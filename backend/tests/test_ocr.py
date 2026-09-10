@@ -322,9 +322,42 @@ class TestPersistAndMatchReturnsExtractedFields:
             "per_image": [],
         }
         result = await _persist_and_match(
-            db=db_session, merged=merged, installation_year=2005
+            db=db_session, merged=merged, form_installation_year=2005
         )
         assert result["installation_year"] == 2005
+        assert result["year_prompt_needed"] is False
+
+    @pytest.mark.asyncio
+    async def test_year_prompt_when_ocr_year_missing(self, db_session):
+        merged = {
+            "raw_text": "Vaillant ecoTEC plus",
+            "cleaned_text": "Vaillant ecoTEC plus",
+            "confidence": 88.0,
+            "manufacturer": "Vaillant",
+            "model": "ecoTEC plus",
+            "installation_year": None,
+            "per_image": [],
+        }
+        result = await _persist_and_match(db=db_session, merged=merged)
+        assert result["year_prompt_needed"] is True
+        assert result["match_search_status"] == "running"
+        assert result["installation_year"] is None
+
+    @pytest.mark.asyncio
+    async def test_complete_search_when_ocr_year_present(self, db_session):
+        merged = {
+            "raw_text": "Vaillant ecoTEC\nBaujahr: 2015",
+            "cleaned_text": "Vaillant ecoTEC Baujahr 2015",
+            "confidence": 88.0,
+            "manufacturer": "Vaillant",
+            "model": "ecoTEC",
+            "installation_year": 2015,
+            "per_image": [],
+        }
+        result = await _persist_and_match(db=db_session, merged=merged)
+        assert result["year_prompt_needed"] is False
+        assert result["match_search_status"] == "complete"
+        assert result["extracted_installation_year"] == 2015
 
 
 class TestExtractInstallationYear:
@@ -349,6 +382,13 @@ class TestExtractInstallationYear:
     def test_date_format_mm_dot_yyyy(self):
         text = "Viessmann Vitodens 100\n11.2017\n26 kW"
         assert extract_installation_year(text) == 2017
+
+    def test_vaillant_doc_revision_stamp(self):
+        text = (
+            "0020181512_01-03/14 Vaillant GmbH Remscheid auroCOMPACT VSC S 146/4-5 150 "
+            "Gas-Kompaktgerät mit Brennwerttechnik"
+        )
+        assert extract_installation_year(text) == 2014
 
     def test_standalone_year_near_manufacturer(self):
         text = "ELCO Thision S Plus\nELCO Heiztechnik GmbH\n2012\n13.1 kW Erdgas"

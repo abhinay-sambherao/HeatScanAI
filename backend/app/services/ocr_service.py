@@ -1,17 +1,20 @@
 """OCR service: orchestrates pipeline execution and database persistence."""
 from __future__ import annotations
 
+import asyncio
 import uuid
-from typing import Optional, List, Tuple
-from sqlalchemy import select
+from typing import Optional, List, Tuple, Dict, Any
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ocr_result import OCRResult
 from app.models.match import Match
 from app.ocr.pipeline import run_pipeline
+from app.ocr.parser import extract_fields
 from app.services.matching_service import find_matches, find_retail_matches
 from app.services.crawler_service import search_and_add_product
 from app.services.manufacturer_scraper import search_and_add_from_manufacturer
+from app.database import async_session_factory
 
 
 def _merge_pipeline_results(results: List[dict]) -> dict:
@@ -70,6 +73,155 @@ def _merge_pipeline_results(results: List[dict]) -> dict:
     return merged
 
 
+def _match_kwargs(merged: dict, installation_year: Optional[int]) -> dict:
+    """Common kwargs for find_matches from a merged pipeline dict."""
+    return {
+        "manufacturer": merged.get("manufacturer"),
+        "model": merged.get("model"),
+        "energy_class": merged.get("energy_class"),
+        "fuel_type": merged.get("fuel_type"),
+        "heat_output": merged.get("heat_output"),
+        "raw_text": merged["raw_text"],
+        "installation_year": installation_year,
+    }
+
+
+async def _run_matching_chain(
+    db: AsyncSession,
+    merged: dict,
+    installation_year: Optional[int],
+    *,
+    include_fallbacks: bool = True,
+) -> List[dict]:
+    """Run local matching and optional EPREL/manufacturer fallbacks + retail."""
+    kwargs = _match_kwargs(merged, installation_year)
+    matches = await find_matches(db, **kwargs)
+
+    if include_fallbacks and (not matches or matches[0]["score"] < 50):
+        new_products = await search_and_add_product(
+            db,
+            manufacturer=merged.get("manufacturer"),
+            model=merged.get("model"),
+            fuel_type=merged.get("fuel_type"),
+            heat_output=merged.get("heat_output"),
+        )
+        if new_products:
+            matches = await find_matches(db, **kwargs)
+
+    if include_fallbacks and (not matches or matches[0]["score"] < 50):
+        web_products = await search_and_add_from_manufacturer(
+            db,
+            manufacturer=merged.get("manufacturer"),
+            model=merged.get("model"),
+        )
+        if web_products:
+            matches = await find_matches(db, **kwargs)
+
+    retail_matches = await find_retail_matches(
+        db,
+        manufacturer=merged.get("manufacturer"),
+        model=merged.get("model"),
+    )
+    return matches + retail_matches
+
+
+async def _persist_matches(
+    db: AsyncSession,
+    ocr_result: OCRResult,
+    match_list: List[dict],
+) -> None:
+    """Replace persisted Match rows with authoritative (product_id) matches only."""
+    # Never touch ocr_result.matches here — lazy-loading relationships in an
+    # async session raises greenlet_spawn errors. Delete by FK instead.
+    await db.execute(delete(Match).where(Match.ocr_result_id == ocr_result.id))
+    await db.flush()
+
+    for match_data in match_list:
+        if not match_data.get("product_id"):
+            continue
+        match_obj = Match(
+            id=uuid.uuid4(),
+            ocr_result_id=ocr_result.id,
+            product_id=match_data["product_id"],
+            score=match_data["score"],
+            matched_attributes=match_data["matched_attributes"],
+            reason=match_data["reason"],
+        )
+        db.add(match_obj)
+    await db.flush()
+
+
+async def _run_fallbacks_background(
+    ocr_result_id: uuid.UUID,
+    merged: dict,
+    installation_year: Optional[int],
+) -> None:
+    """Run EPREL/manufacturer fallbacks in a fresh session (year may still be None)."""
+    async with async_session_factory() as db:
+        try:
+            result = await db.execute(
+                select(OCRResult).where(OCRResult.id == ocr_result_id)
+            )
+            ocr_result = result.scalar_one_or_none()
+            if not ocr_result:
+                return
+
+            # User may have submitted a year via rematch while fallbacks were running.
+            year = ocr_result.installation_year or installation_year
+            match_list = await _run_matching_chain(
+                db, merged, year, include_fallbacks=True
+            )
+            await _persist_matches(db, ocr_result, match_list)
+            ocr_result.match_search_status = "complete"
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            async with async_session_factory() as db2:
+                result = await db2.execute(
+                    select(OCRResult).where(OCRResult.id == ocr_result_id)
+                )
+                ocr_result = result.scalar_one_or_none()
+                if ocr_result:
+                    ocr_result.match_search_status = "complete"
+                    await db2.commit()
+
+
+async def get_ocr_matches(
+    db: AsyncSession,
+    ocr_result_id: uuid.UUID,
+) -> dict:
+    """Return current matches for an OCR result (recomputed from stored text)."""
+    result = await db.execute(
+        select(OCRResult).where(OCRResult.id == ocr_result_id)
+    )
+    ocr_result = result.scalar_one_or_none()
+    if not ocr_result:
+        raise ValueError(f"OCR result {ocr_result_id} not found")
+
+    fields = extract_fields(ocr_result.raw_text)
+    match_list = await _run_matching_chain(
+        db,
+        {
+            "manufacturer": fields.get("manufacturer"),
+            "model": fields.get("model"),
+            "energy_class": fields.get("energy_class"),
+            "fuel_type": fields.get("fuel_type"),
+            "heat_output": fields.get("heat_output"),
+            "raw_text": ocr_result.raw_text,
+        },
+        ocr_result.installation_year,
+        include_fallbacks=ocr_result.match_search_status == "complete",
+    )
+
+    return {
+        "ocr_result_id": ocr_result.id,
+        "installation_year": ocr_result.installation_year,
+        "extracted_installation_year": fields.get("installation_year"),
+        "match_search_status": ocr_result.match_search_status,
+        "matches": match_list,
+    }
+
+
 async def process_upload(
     db: AsyncSession,
     image_data: bytes,
@@ -93,8 +245,9 @@ async def process_upload(
         address=address,
         postal_code=postal_code,
         city=city,
-        installation_year=installation_year,
+        form_installation_year=installation_year,
     )
+
 
 async def process_multiple_uploads(
     db: AsyncSession,
@@ -106,11 +259,7 @@ async def process_multiple_uploads(
     city: Optional[str] = None,
     installation_year: Optional[int] = None,
 ) -> dict:
-    """Process multiple images and merge results with best-confidence strategy.
-
-    Args:
-        images: List of (filename, image_data) tuples.
-    """
+    """Process multiple images and merge results with best-confidence strategy."""
     pipeline_results = []
     for filename, data in images:
         result = run_pipeline(data)
@@ -127,7 +276,7 @@ async def process_multiple_uploads(
         address=address,
         postal_code=postal_code,
         city=city,
-        installation_year=installation_year,
+        form_installation_year=installation_year,
     )
 
 
@@ -139,13 +288,14 @@ async def _persist_and_match(
     address: Optional[str] = None,
     postal_code: Optional[str] = None,
     city: Optional[str] = None,
-    installation_year: Optional[int] = None,
+    form_installation_year: Optional[int] = None,
 ) -> dict:
     """Save OCR result to DB, run matching (with fallbacks), persist matches."""
-    # Use a user-provided year, else fall back to the one OCR extracted from the
-    # nameplate (e.g. "Baujahr: 2006"), so we don't prompt unnecessarily.
-    if installation_year is None:
-        installation_year = merged.get("installation_year")
+    extracted_year = merged.get("installation_year")
+    installation_year = form_installation_year if form_installation_year is not None else extracted_year
+    year_known = installation_year is not None
+    year_prompt_needed = extracted_year is None and form_installation_year is None
+
     first_filename = merged.get("per_image", [{}])[0].get("filename", "unknown") if merged.get("per_image") else "unknown"
 
     ocr_result = OCRResult(
@@ -160,86 +310,43 @@ async def _persist_and_match(
         postal_code=postal_code,
         city=city,
         installation_year=installation_year,
+        match_search_status="complete" if year_known else "running",
     )
     db.add(ocr_result)
     await db.flush()
 
-    matches = await find_matches(
-        db,
-        manufacturer=merged.get("manufacturer"),
-        model=merged.get("model"),
-        energy_class=merged.get("energy_class"),
-        fuel_type=merged.get("fuel_type"),
-        heat_output=merged.get("heat_output"),
-        raw_text=merged["raw_text"],
-        installation_year=installation_year,
+    # When year is unknown: return local + retail matches immediately; run slow
+    # EPREL/manufacturer fallbacks in the background while the user may enter year.
+    include_fallbacks_sync = year_known
+    match_list = await _run_matching_chain(
+        db, merged, installation_year, include_fallbacks=include_fallbacks_sync
+    )
+    await _persist_matches(db, ocr_result, match_list)
+
+    if not year_known:
+        asyncio.create_task(
+            _run_fallbacks_background(ocr_result.id, merged, installation_year)
+        )
+
+    await db.refresh(ocr_result)
+
+    return _build_response(
+        ocr_result=ocr_result,
+        merged=merged,
+        match_list=match_list,
+        extracted_year=extracted_year,
+        year_prompt_needed=year_prompt_needed,
     )
 
-    # Fallback 1: EPREL API on-demand
-    if not matches or matches[0]["score"] < 50:
-        new_products = await search_and_add_product(
-            db,
-            manufacturer=merged.get("manufacturer"),
-            model=merged.get("model"),
-            fuel_type=merged.get("fuel_type"),
-            heat_output=merged.get("heat_output"),
-        )
-        if new_products:
-            matches = await find_matches(
-                db,
-                manufacturer=merged.get("manufacturer"),
-                model=merged.get("model"),
-                energy_class=merged.get("energy_class"),
-                fuel_type=merged.get("fuel_type"),
-                heat_output=merged.get("heat_output"),
-                raw_text=merged["raw_text"],
-                installation_year=installation_year,
-            )
 
-    # Fallback 2: manufacturer website
-    if not matches or matches[0]["score"] < 50:
-        web_products = await search_and_add_from_manufacturer(
-            db,
-            manufacturer=merged.get("manufacturer"),
-            model=merged.get("model"),
-        )
-        if web_products:
-            matches = await find_matches(
-                db,
-                manufacturer=merged.get("manufacturer"),
-                model=merged.get("model"),
-                energy_class=merged.get("energy_class"),
-                fuel_type=merged.get("fuel_type"),
-                heat_output=merged.get("heat_output"),
-                raw_text=merged["raw_text"],
-                installation_year=installation_year,
-            )
-
-    # Retail enrichment: surface currently purchasable listings (reseller URL +
-    # price) alongside the EPREL/manufacturer identification. These are returned
-    # in the payload but intentionally NOT persisted as Match rows (no EPREL
-    # product_id), so the DB keeps only authoritative product matches.
-    retail_matches = await find_retail_matches(
-        db,
-        manufacturer=merged.get("manufacturer"),
-        model=merged.get("model"),
-    )
-
-    for match_data in matches:
-        if not match_data.get("product_id"):
-            continue
-        match_obj = Match(
-            id=uuid.uuid4(),
-            ocr_result_id=ocr_result.id,
-            product_id=match_data["product_id"],
-            score=match_data["score"],
-            matched_attributes=match_data["matched_attributes"],
-            reason=match_data["reason"],
-        )
-        db.add(match_obj)
-
-    await db.flush()
-
+def _build_response(
+    ocr_result: OCRResult,
+    merged: dict,
+    match_list: List[dict],
+    extracted_year: Optional[int],
+    year_prompt_needed: bool,
+) -> dict:
+    """Build the API response dict for an OCR scan."""
     return {
         "ocr_result_id": ocr_result.id,
         "manufacturer": merged.get("manufacturer"),
@@ -250,7 +357,7 @@ async def _persist_and_match(
         "confidence": merged["confidence"],
         "raw_text": merged["raw_text"],
         "cleaned_text": merged["cleaned_text"],
-        "matches": matches + retail_matches,
+        "matches": match_list,
         "per_image": merged.get("per_image", []),
         "latitude": ocr_result.latitude,
         "longitude": ocr_result.longitude,
@@ -258,6 +365,9 @@ async def _persist_and_match(
         "postal_code": ocr_result.postal_code,
         "city": ocr_result.city,
         "installation_year": ocr_result.installation_year,
+        "extracted_installation_year": extracted_year,
+        "year_prompt_needed": year_prompt_needed,
+        "match_search_status": ocr_result.match_search_status,
         "created_at": ocr_result.created_at,
     }
 
@@ -267,11 +377,7 @@ async def update_installation_year(
     ocr_result_id: uuid.UUID,
     installation_year: int,
 ) -> dict:
-    """Update the installation year on an OCR result and re-run matching.
-
-    Deletes old matches and creates new ones filtered by the provided year.
-    Returns the updated OCR result ID, year, and new matches.
-    """
+    """Update the installation year on an OCR result and re-run matching."""
     result = await db.execute(
         select(OCRResult).where(OCRResult.id == ocr_result_id)
     )
@@ -282,50 +388,29 @@ async def update_installation_year(
     ocr_result.installation_year = installation_year
     await db.flush()
 
-    # Delete old matches
-    for match in list(ocr_result.matches):
-        await db.delete(match)
-    await db.flush()
-
-    # Re-extract fields from stored raw text for proper matching
-    from app.ocr.parser import extract_fields
     fields = extract_fields(ocr_result.raw_text)
+    merged = {
+        "manufacturer": fields.get("manufacturer"),
+        "model": fields.get("model"),
+        "energy_class": fields.get("energy_class"),
+        "fuel_type": fields.get("fuel_type"),
+        "heat_output": fields.get("heat_output"),
+        "raw_text": ocr_result.raw_text,
+    }
 
-    # Re-run matching with the year filter
-    matches = await find_matches(
-        db,
-        manufacturer=fields.get("manufacturer"),
-        model=fields.get("model"),
-        energy_class=fields.get("energy_class"),
-        fuel_type=fields.get("fuel_type"),
-        heat_output=fields.get("heat_output"),
-        raw_text=ocr_result.raw_text,
-        installation_year=installation_year,
+    # Re-run full chain synchronously now that year is known.
+    match_list = await _run_matching_chain(
+        db, merged, installation_year, include_fallbacks=True
     )
-
-    retail_matches = await find_retail_matches(
-        db,
-        manufacturer=fields.get("manufacturer"),
-        model=fields.get("model"),
-    )
-
-    for match_data in matches:
-        if not match_data.get("product_id"):
-            continue
-        match_obj = Match(
-            id=uuid.uuid4(),
-            ocr_result_id=ocr_result.id,
-            product_id=match_data["product_id"],
-            score=match_data["score"],
-            matched_attributes=match_data["matched_attributes"],
-            reason=match_data["reason"],
-        )
-        db.add(match_obj)
-
+    await _persist_matches(db, ocr_result, match_list)
+    ocr_result.match_search_status = "complete"
     await db.flush()
 
     return {
         "ocr_result_id": ocr_result.id,
         "installation_year": installation_year,
-        "matches": matches + retail_matches,
+        "extracted_installation_year": fields.get("installation_year"),
+        "year_prompt_needed": False,
+        "match_search_status": "complete",
+        "matches": match_list,
     }

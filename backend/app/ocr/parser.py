@@ -472,8 +472,18 @@ _YEAR_LABEL_RE = re.compile(
 # MM/YYYY or MM.YYYY date formats (e.g. "02/2024", "03.2019")
 _DATE_MONTH_YEAR_RE = re.compile(r"\b(\d{1,2})[/.](\d{4})\b")
 
+# Vaillant-style document revision stamp (e.g. "01-03/14" → March 2014).
+_DOC_REV_DATE_RE = re.compile(r"(?<![\d])(\d{2})[-./](\d{2})[-./](\d{2})(?![\d])")
+
 # Standalone 4-digit year in valid range
 _STANDALONE_YEAR_RE = re.compile(r"\b((?:19|20)\d{2})\b")
+
+
+def _two_digit_year_to_full(two_digit: int) -> int:
+    """Convert a 2-digit year to a 4-digit year in the 1980–2030 window."""
+    if two_digit <= 30:
+        return 2000 + two_digit
+    return 1900 + two_digit
 
 
 def extract_installation_year(text: str) -> int | None:
@@ -498,6 +508,13 @@ def extract_installation_year(text: str) -> int | None:
     match = _DATE_MONTH_YEAR_RE.search(text)
     if match:
         year = int(match.group(2))
+        if 1980 <= year <= 2030:
+            return year
+
+    # Pass 2b: document revision stamps (Vaillant "01-03/14", "01.03.14")
+    match = _DOC_REV_DATE_RE.search(text)
+    if match:
+        year = _two_digit_year_to_full(int(match.group(3)))
         if 1980 <= year <= 2030:
             return year
 

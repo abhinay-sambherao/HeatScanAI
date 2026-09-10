@@ -39,7 +39,10 @@ async def _seed(db, manufacturer="Stiebel Eltron", products=()):
 
 class TestClassifyMatch:
     def test_exact(self):
-        assert _classify_match(90, 95, True, "WPL 18", "WPL 18") == MATCH_TYPE_EXACT
+        assert _classify_match(90, 95, True, "WPL 18", "WPL 18", composite_score=85) == MATCH_TYPE_EXACT
+
+    def test_exact_requires_composite_threshold(self):
+        assert _classify_match(90, 95, True, "WPL 18", "WPL 18", composite_score=65) == MATCH_TYPE_VARIANT
 
     def test_variant(self):
         assert _classify_match(90, 60, True, "Thision S Plus", "THISION L PLUS") == MATCH_TYPE_VARIANT
@@ -52,6 +55,33 @@ class TestClassifyMatch:
 
     def test_brand_only_when_no_model(self):
         assert _classify_match(90, 0, True, None, "AIR 80 C13A") == MATCH_TYPE_BRAND_ONLY
+
+
+class TestEprelPublicLink:
+    def test_builds_public_url(self):
+        from app.services.matching_service import _eprel_public_link
+        from app.models.product import Product
+
+        p = Product(
+            eprel_id="994260",
+            model="auroCOMPACT VSC S 146/4-5 150 (E-DE)",
+            manufacturer_id=uuid.uuid4(),
+            raw_json={"productGroup": "spaceheaters"},
+        )
+        eid, url = _eprel_public_link(p)
+        assert eid == "994260"
+        assert url == "https://eprel.ec.europa.eu/screen/product/spaceheaters/994260"
+
+    def test_skips_manufacturer_web_ids(self):
+        from app.services.matching_service import _eprel_public_link
+        from app.models.product import Product
+
+        p = Product(
+            eprel_id="WEB-VAIL-auroCOMPACT",
+            model="auroCOMPACT",
+            manufacturer_id=uuid.uuid4(),
+        )
+        assert _eprel_public_link(p) == (None, None)
 
 
 class TestModelAliases:
@@ -115,16 +145,18 @@ class TestAttributeLookupP5:
 
 @pytest.mark.asyncio
 class TestAliasPromotesWeakModelP3:
-    async def test_alias_overrides_to_exact(self, db_session):
+    async def test_alias_promotes_weak_model(self, db_session):
         await _seed(db_session, manufacturer="ELCO", products=[
             {"model": "thision l plus 13", "fuel_type": "gas", "energy_class": "A"},
         ])
         # Nameplate reads "Thision S Plus 13" — alias maps to "thision l plus 13".
+        # Strings differ (S vs l) so match_type is model_variant, not exact_model,
+        # but the alias still promotes the model score to 95 so the product is found.
         res = await find_matches(
             db_session, manufacturer="ELCO", model="Thision S Plus 13",
             raw_text="ELCO Thision S Plus 13",
         )
-        assert res and res[0]["match_type"] == MATCH_TYPE_EXACT
+        assert res and res[0]["match_type"] == MATCH_TYPE_VARIANT
         assert res[0]["model"] == "thision l plus 13"
 
 

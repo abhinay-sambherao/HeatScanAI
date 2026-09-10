@@ -13,7 +13,10 @@ from sqlalchemy.orm import selectinload
 
 from app.models.product import Product
 from app.models.retail_product import RetailProduct
+from app.models.manufacturer import Manufacturer
 from app.services.model_aliases import alias_overrides_model_score
+from app.services.brand_normalizer import normalize_brand
+from sqlalchemy import or_
 
 # Base weights for composite scoring
 WEIGHT_MANUFACTURER = 0.35
@@ -32,6 +35,36 @@ _HEAT_OUTPUT_BAND_MIN = 2.0  # kW absolute minimum band
 # P2: installation year tolerance — skip EPREL products registered more
 # than this many years after the nameplate year.
 _INSTALL_YEAR_TOLERANCE = 2
+
+EPREL_PUBLIC_BASE = "https://eprel.ec.europa.eu/screen/product"
+
+
+def _eprel_public_link(product: Product) -> tuple:
+    """Return (eprel_id, public_url) for verifiable EPREL registry entries."""
+    eprel_id = product.eprel_id
+    if not eprel_id or str(eprel_id).startswith("WEB-"):
+        return None, None
+    raw = product.raw_json if isinstance(product.raw_json, dict) else {}
+    group = raw.get("productGroup") or "spaceheaters"
+    return str(eprel_id), "%s/%s/%s" % (EPREL_PUBLIC_BASE, group, eprel_id)
+
+
+async def _load_candidate_products(db: AsyncSession, manufacturer=None) -> list:
+    """Load products for fuzzy matching, scoped by brand when OCR detected one."""
+    stmt = select(Product).options(
+        selectinload(Product.manufacturer),
+        selectinload(Product.category),
+    )
+    if manufacturer:
+        canonical = normalize_brand(manufacturer) or manufacturer
+        stmt = stmt.join(Product.manufacturer).where(
+            or_(
+                Manufacturer.name.ilike("%%%s%%" % canonical),
+                Manufacturer.name.ilike("%%%s%%" % manufacturer),
+            )
+        )
+    result = await db.execute(stmt)
+    return result.scalars().all()
 
 # Heating-system scope. This is a heating lead-gen tool: only heating
 # appliances (including reversible heat pumps that also heat) may ever appear
@@ -220,14 +253,28 @@ MATCH_TYPE_BRAND_ONLY = "brand_only"
 MATCH_TYPE_ATTRIBUTE = "attribute_match"
 
 
-def _classify_match(mfr_score, model_score, brand_ok, model, product_model, use_attribute_path=False):
+def _classify_match(
+    mfr_score,
+    model_score,
+    brand_ok,
+    model,
+    product_model,
+    composite_score=0.0,
+    use_attribute_path=False,
+):
     """Classify how confident a match is, for the results UI badges (P4).
 
     Returns one of exact_model / model_variant / brand_only / attribute_match.
     """
     if use_attribute_path:
         return MATCH_TYPE_ATTRIBUTE
-    if model and product_model and model_score >= 80 and brand_ok:
+    if (
+        model
+        and product_model
+        and model_score >= 80
+        and brand_ok
+        and composite_score >= 70
+    ):
         return MATCH_TYPE_EXACT
     if model and product_model and model_score >= 50 and brand_ok:
         return MATCH_TYPE_VARIANT
@@ -256,12 +303,7 @@ async def _attribute_lookup(
     if not (manufacturer or fuel_type or energy_class or heat_output):
         return []
 
-    stmt = select(Product).options(
-        selectinload(Product.manufacturer),
-        selectinload(Product.category),
-    )
-    result = await db.execute(stmt)
-    products = result.scalars().all()
+    products = await _load_candidate_products(db, manufacturer)
 
     detected_kw = _extract_kw(heat_output)
     scored = []
@@ -331,6 +373,7 @@ async def _attribute_lookup(
         if comp < 40.0:
             continue
 
+        eprel_id, eprel_url = _eprel_public_link(product)
         scored.append({
             "product_id": product.id,
             "manufacturer": mfr_name or "Unknown",
@@ -340,6 +383,8 @@ async def _attribute_lookup(
             "fuel_type": product.fuel_type,
             "heat_output": product.heat_output,
             "source": product.source or "EPREL",
+            "eprel_id": eprel_id,
+            "eprel_url": eprel_url,
             "score": round(comp, 2),
             "match_type": MATCH_TYPE_ATTRIBUTE,
             "matched_attributes": matched_attrs,
@@ -369,12 +414,7 @@ async def find_matches(
     When installation_year is provided, filters out EPREL products registered
     more than _INSTALL_YEAR_TOLERANCE years after the nameplate year.
     """
-    stmt = select(Product).options(
-        selectinload(Product.manufacturer),
-        selectinload(Product.category),
-    )
-    result = await db.execute(stmt)
-    products = result.scalars().all()
+    products = await _load_candidate_products(db, manufacturer)
 
     scored = []
     for product in products:
@@ -494,6 +534,7 @@ async def find_matches(
             matched_attrs["raw_text_match"] = {"score": round(raw_score, 1), "target": product.model}
             reasons.append("Raw text match: %s (%.0f%%)" % (product.model, raw_score))
 
+        eprel_id, eprel_url = _eprel_public_link(product)
         scored.append({
             "product_id": product.id,
             "manufacturer": mfr_name or "Unknown",
@@ -503,8 +544,12 @@ async def find_matches(
             "fuel_type": product.fuel_type,
             "heat_output": product.heat_output,
             "source": product.source or "EPREL",
+            "eprel_id": eprel_id,
+            "eprel_url": eprel_url,
             "score": round(composite, 2),
-            "match_type": _classify_match(mfr_score, model_score, brand_ok, model, product.model),
+            "match_type": _classify_match(
+                mfr_score, model_score, brand_ok, model, product.model, composite,
+            ),
             "matched_attributes": matched_attrs,
             "reason": "; ".join(reasons) if reasons else "Partial match",
         })

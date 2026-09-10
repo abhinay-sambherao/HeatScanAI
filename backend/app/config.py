@@ -24,7 +24,7 @@ class Settings(BaseSettings):
         default=1440, description="JWT token expiry in minutes (24h)"
     )
     ALLOWED_ORIGINS: str = Field(
-        default="http://localhost:3000,http://localhost:8000,http://127.0.0.1:8000,null",
+        default="http://localhost:3000,http://localhost:5500,http://localhost:8000,http://127.0.0.1:5500,http://127.0.0.1:8000,null",
         description="Comma-separated allowed CORS origins",
     )
     ALLOWED_ORIGINS_REGEX: str = Field(
